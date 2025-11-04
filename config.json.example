@@ -1,0 +1,38 @@
+{
+  "demographics": {
+    "gender": "Man",
+    "race": "White",
+    "disability": "No",
+    "veteran_status": "No"
+  },
+  "background": {
+    "years_of_experience": 9,
+    "current_title": "AI & React Developer",
+    "industry": "AI/ML Engineering, MLOps",
+    "specialization": "Large Language Models, NLP, MLOps, Cloud Architecture",
+    "elevator_pitch": "Senior MLOps & AI/ML Engineering Leader with 9+ years of experience specializing in the end-to-end lifecycle of Large Language Models (LLMs), Natural Language Processing (NLP), and distributed machine learning systems. Proven expertise in translating complex client requirements into scalable, production-ready solutions across multi-cloud environments (AWS and Azure)."
+  },
+  "preferences": {
+    "job_types": ["Remote"],
+    "employment_types": ["Full-time"],
+    "min_salary": 150000,
+    "max_salary": 220000,
+    "willing_to_relocate": false,
+    "notice_period_weeks": 2
+  },
+  "files": {
+    "original_resume_path": "resumes/original/Julian_Thomas.docx",
+    "cover_letter_template": "resumes/original/cover_letter_template.txt"
+  },
+  "ai_settings": {
+    "model": "llama3.1",
+    "temperature": 0.7,
+    "tone": "professional and enthusiastic",
+    "answer_length": "concise",
+    "emphasize_keywords": true,
+    "available_models": [
+      "llama3.1",
+      "deepseek-r1"
+    ]
+  }
+}
