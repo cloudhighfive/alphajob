@@ -1,0 +1,2 @@
+# This file ensures the debug directory structure is preserved in git
+# All actual debug files are gitignored

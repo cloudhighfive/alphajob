@@ -1926,40 +1926,157 @@ Be concise. Focus on form elements only."""
                         # Scroll to make sure it's visible
                         gender_heading.scroll_into_view_if_needed()
                         
-                        # The heading label is the first child of fieldset, get the parent fieldset
-                        gender_fieldset = gender_heading.locator('xpath=..').first
+                        print(f"   🔍 DEBUG: Starting gender field detection...")
+                        
+                        # Try multiple strategies to find the fieldset container
+                        gender_fieldset = None
+                        
+                        # Strategy 1: Get parent element
+                        try:
+                            gender_fieldset = gender_heading.locator('xpath=..').first
+                            print(f"   🔍 DEBUG: Strategy 1 - Found parent element")
+                            print(f"   🔍 DEBUG: Parent tag name: {gender_fieldset.evaluate('el => el.tagName')}")
+                            print(f"   🔍 DEBUG: Parent class: {gender_fieldset.get_attribute('class')}")
+                        except Exception as e:
+                            print(f"   🔍 DEBUG: Strategy 1 failed: {str(e)[:100]}")
+                        
+                        # Strategy 2: Try to find the fieldset by going up the DOM
+                        if not gender_fieldset or gender_fieldset.evaluate('el => el.tagName').lower() != 'fieldset':
+                            try:
+                                gender_fieldset = gender_heading.locator('xpath=ancestor::fieldset').first
+                                print(f"   🔍 DEBUG: Strategy 2 - Found ancestor fieldset")
+                            except Exception as e:
+                                print(f"   🔍 DEBUG: Strategy 2 failed: {str(e)[:100]}")
+                        
+                        if not gender_fieldset:
+                            print(f"   🔍 DEBUG: ERROR - Could not find fieldset container")
+                            raise Exception("Could not find fieldset container")
                         
                         # Find ALL labels within this fieldset (not just the heading)
-                        all_labels = gender_fieldset.locator('label').all()
-                        print(f"         🔍 Found {len(all_labels)} total labels in fieldset")
-                        
-                        # Filter out the heading label and show only option labels
+                        all_labels = []
                         option_labels = []
-                        for label in all_labels:
-                            label_text = label.inner_text().strip()
-                            # Skip the "Gender identity" heading
-                            if label_text and label_text.lower() != 'gender identity':
-                                option_labels.append(label)
-                                print(f"            - '{label_text}'")
+                        
+                        # Primary strategy: Look for option divs with the specific class
+                        print(f"   🔍 DEBUG: Trying primary strategy - finding option divs")
+                        try:
+                            option_divs = gender_fieldset.locator('div._option_1v5e2_35, div[class*="_option_"]').all()
+                            print(f"   🔍 DEBUG: Found {len(option_divs)} option divs")
+                            if len(option_divs) > 0:
+                                for i, div in enumerate(option_divs):
+                                    label = div.locator('label').first
+                                    if label.count() > 0:
+                                        all_labels.append(label)
+                                        try:
+                                            label_text = label.inner_text().strip()
+                                            print(f"   🔍 DEBUG: Option {i}: '{label_text}'")
+                                            if label_text and label_text.lower() != 'gender identity':
+                                                option_labels.append(label)
+                                                print(f"            - '{label_text}'")
+                                        except Exception as e:
+                                            print(f"   🔍 DEBUG: Error reading label {i}: {str(e)[:50]}")
+                        except Exception as e:
+                            print(f"   🔍 DEBUG: Primary strategy failed: {str(e)[:100]}")
+                        
+                        # Fallback: Try finding all labels
+                        if len(option_labels) == 0:
+                            print(f"   🔍 DEBUG: Primary strategy didn't find options, trying fallback")
+                            all_labels = gender_fieldset.locator('label').all()
+                            print(f"   🔍 DEBUG: Found {len(all_labels)} total labels using 'label' selector")
+                            
+                            # Try alternative selector for labels
+                            if len(all_labels) == 0 or len(all_labels) == 1:
+                                print(f"   🔍 DEBUG: Trying alternative selector: label[for]")
+                                all_labels = gender_fieldset.locator('label[for]').all()
+                                print(f"   🔍 DEBUG: Found {len(all_labels)} labels with 'for' attribute")
+                            
+                            # Filter out the heading label
+                            for i, label in enumerate(all_labels):
+                                try:
+                                    label_text = label.inner_text().strip()
+                                    print(f"   🔍 DEBUG: Label {i}: '{label_text}'")
+                                    if label_text and label_text.lower() != 'gender identity':
+                                        option_labels.append(label)
+                                        print(f"            - '{label_text}'")
+                                except Exception as e:
+                                    print(f"   🔍 DEBUG: Error reading label {i}: {str(e)[:50]}")
                         
                         print(f"         🎯 Looking for: '{gender_value}'")
+                        print(f"   🔍 DEBUG: Total option labels found: {len(option_labels)}")
                         
-                        # Find and click (case-insensitive)
+                        # Strategy: Find radio inputs and check their associated labels' ::before content
+                        # Since the text is in ::before pseudo-element, we need a different approach
                         matched = False
-                        for label in option_labels:
-                            label_text = label.inner_text().strip()
-                            if label_text.lower() == gender_value.lower():
-                                print(f"         ✓ Found match, clicking label...")
-                                label.click()
-                                print(f"      ✅ Selected Gender: {gender_value}")
-                                matched = True
-                                break
+                        
+                        # Try method 1: Look for labels with text content matching gender value
+                        if not matched and len(option_labels) > 0:
+                            for label in option_labels:
+                                try:
+                                    label_text = label.inner_text().strip()
+                                    print(f"   🔍 DEBUG: Comparing label text '{label_text.lower()}' with '{gender_value.lower()}'")
+                                    if label_text and label_text.lower() == gender_value.lower():
+                                        print(f"         ✓ Found match, clicking label...")
+                                        label.scroll_into_view_if_needed()
+                                        time.sleep(0.3)
+                                        label.click()
+                                        time.sleep(0.5)
+                                        print(f"      ✅ Selected Gender: {gender_value}")
+                                        matched = True
+                                        break
+                                except Exception as e:
+                                    print(f"   🔍 DEBUG: Error checking label: {str(e)[:50]}")
+                        
+                        # Try method 2: Look for label with ::before content by checking the radio input value or examining all inputs
+                        if not matched:
+                            print(f"   🔍 DEBUG: Method 1 failed, trying to find radio inputs directly")
+                            # Find all radio inputs within the fieldset
+                            radio_inputs = gender_fieldset.locator('input[type="radio"]').all()
+                            print(f"   🔍 DEBUG: Found {len(radio_inputs)} radio inputs")
+                            
+                            for i, radio in enumerate(radio_inputs):
+                                try:
+                                    # Get the input's id and find its label
+                                    input_id = radio.get_attribute('id')
+                                    print(f"   🔍 DEBUG: Radio {i} - id: {input_id}")
+                                    
+                                    # Find the label for this input
+                                    label_for_input = gender_fieldset.locator(f'label[for="{input_id}"]').first
+                                    if label_for_input.count() > 0:
+                                        # Check if this is the "Man" option by position or by getting computed style
+                                        # For now, try clicking based on index (Woman=0, Man=1, etc.)
+                                        label_text = label_for_input.text_content().strip()
+                                        print(f"   🔍 DEBUG: Radio {i} - label text: '{label_text}'")
+                                        
+                                        # If label text is empty, it's in ::before, so we match by index
+                                        # Based on typical order: Woman=0, Man=1, Non-Binary=2, etc.
+                                        if gender_value.lower() == 'man' and i == 1:
+                                            print(f"         ✓ Found 'Man' by position (index {i}), clicking...")
+                                            label_for_input.scroll_into_view_if_needed()
+                                            time.sleep(0.3)
+                                            label_for_input.click()
+                                            time.sleep(0.5)
+                                            print(f"      ✅ Selected Gender: {gender_value}")
+                                            matched = True
+                                            break
+                                        elif gender_value.lower() == 'woman' and i == 0:
+                                            print(f"         ✓ Found 'Woman' by position (index {i}), clicking...")
+                                            label_for_input.scroll_into_view_if_needed()
+                                            time.sleep(0.3)
+                                            label_for_input.click()
+                                            time.sleep(0.5)
+                                            print(f"      ✅ Selected Gender: {gender_value}")
+                                            matched = True
+                                            break
+                                except Exception as e:
+                                    print(f"   🔍 DEBUG: Error with radio {i}: {str(e)[:80]}")
                         
                         if not matched:
                             print(f"      ⚠️  Could not find matching gender option: '{gender_value}'")
-                            print(f"      Available options: {[l.inner_text().strip() for l in option_labels]}")
+                            print(f"      Note: The form may use CSS ::before pseudo-elements for text")
                 except Exception as e:
-                    print(f"      ⚠️  Gender field error: {str(e)[:80]}")
+                    print(f"      ⚠️  Gender field error: {str(e)[:150]}")
+                    import traceback
+                    print(f"   🔍 DEBUG: Full error traceback:")
+                    traceback.print_exc()
                 
                 # Try to find and fill Race identity dropdown
                 try:
@@ -1967,19 +2084,39 @@ Be concise. Focus on form elements only."""
                     if race_label.count() > 0:
                         print(f"   📋 Found Race identity field")
                         race_value = demographics.get('race', 'White')
+                        print(f"   🔍 DEBUG: Looking for race value: '{race_value}'")
+                        
                         # Find the dropdown input near the label
                         race_input = page.locator('input[placeholder="Start typing..." i]').last
+                        print(f"   🔍 DEBUG: Found {race_input.count()} input fields with 'Start typing...' placeholder")
+                        
                         if race_input.count() > 0:
                             race_input.scroll_into_view_if_needed()
+                            time.sleep(0.3)
                             race_input.click()
+                            time.sleep(0.5)
+                            print(f"   🔍 DEBUG: Clicked race input, typing value...")
                             race_input.press_sequentially(race_value, delay=80)
+                            time.sleep(0.8)
+                            
                             # Click first autocomplete option
                             option = page.locator('[role="option"]').first
+                            print(f"   🔍 DEBUG: Found {option.count()} autocomplete options")
                             if option.count() > 0:
+                                option_text = option.inner_text()
+                                print(f"   🔍 DEBUG: Clicking first option: '{option_text}'")
                                 option.click()
+                                time.sleep(0.5)
                                 print(f"      ✅ Selected Race: {race_value}")
+                            else:
+                                print(f"   🔍 DEBUG: No autocomplete options appeared")
+                        else:
+                            print(f"   🔍 DEBUG: Could not find race input field")
                 except Exception as e:
-                    print(f"      ⚠️  Race field error: {str(e)[:50]}")
+                    print(f"      ⚠️  Race field error: {str(e)[:150]}")
+                    import traceback
+                    print(f"   🔍 DEBUG: Full error traceback:")
+                    traceback.print_exc()
                 
                 # Try to find and fill Veteran status radio buttons
                 try:

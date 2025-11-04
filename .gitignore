@@ -20,12 +20,15 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Virtual Environment
 venv/
 ENV/
 env/
 .venv
+.virtualenv
 
 # IDE
 .vscode/
@@ -33,33 +36,105 @@ env/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Project specific
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Logs
+*.log
+logs/
+app.log
+
+# Project specific - Generated files (root level, legacy)
 scraped_jobs.json
 enriched_jobs.json
 filled_application_*.json
 form_html_debug.html
-*.log
+form_debug_*.png
+pre_submit_*.png
+application_screenshot_*.png
+debug_output.log
 
-# Resumes (keep structure, ignore generated files)
-resumes/tailored/*/
-applications/*/
+# Project specific - Data directory (organized structure)
+data/screenshots/**/*
+data/applications/**/*
+data/debug/**/*
+data/logs/**/*
+!data/screenshots/.gitkeep
+!data/applications/.gitkeep
+!data/debug/.gitkeep
+!data/logs/.gitkeep
+!data/README.md
+
+# Project specific - Resumes directory
+resumes/original/**/*
+resumes/tailored/**/*
+!resumes/original/.gitkeep
+!resumes/tailored/.gitkeep
+!resumes/example_resume.txt
+
+# Legacy applications directory
+applications/
+!applications/.gitkeep
 
 # Environment files
 .env
+.env.local
+.env.*.local
 
-# Config file
+# Config file (contains personal info)
 config.json
 
-# Images
+# Images (screenshots, debug)
 *.png
+*.jpg
+*.jpeg
 
-# Resumes
-resumes/
-
-# Playwright browsers
+# Playwright
 .playwright/
+playwright-report/
+test-results/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.tmp
+*~
