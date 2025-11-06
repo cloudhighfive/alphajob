@@ -238,6 +238,25 @@ class JobApplicationService:
                 else:
                     filled_data['fields'][field_path] = True
                     logger.info(f"   ✅ Set to: Yes")
+            
+            elif field_type == 'Date':
+                # Handle date fields - check if it's a start date question
+                from datetime import datetime, timedelta
+                if 'start' in field_title.lower():
+                    # Default to 2 weeks from now for start dates
+                    start_date = datetime.now() + timedelta(days=14)
+                    date_value = start_date.strftime('%Y-%m-%d')
+                    filled_data['fields'][field_path] = date_value
+                    logger.info(f"   ✅ Set to: {date_value} (2 weeks from now)")
+                elif 'birth' in field_title.lower() or 'dob' in field_title.lower():
+                    # Don't fill DOB unless required
+                    filled_data['fields'][field_path] = ''
+                    logger.info(f"   ⚠️  Skipped DOB field (privacy)")
+                else:
+                    # Generic date - use current date
+                    date_value = datetime.now().strftime('%Y-%m-%d')
+                    filled_data['fields'][field_path] = date_value
+                    logger.info(f"   ✅ Set to: {date_value}")
                     
             elif field_type in ['LongText', 'String']:
                 # Use AI to answer custom questions
@@ -275,16 +294,24 @@ class JobApplicationService:
                     logger.info(f"   ✅ Selected: {pronoun_value}")
                     
                 elif 'gender' in field_title.lower():
+                    logger.info(f"   [GENDER] Field: {field_title} | Config value: '{demographics.gender}' | Options: {options}")
                     gender_value = demographics.gender
-                    
+                    matched_option = None
                     if options:
                         for opt in options:
+                            logger.info(f"   [GENDER] Checking option: '{opt}' against config value: '{gender_value}'")
                             if gender_value.lower() in opt.lower() or opt.lower() in gender_value.lower():
-                                gender_value = opt
+                                matched_option = opt
+                                logger.info(f"   [GENDER] Match found: '{opt}'")
                                 break
-                    
+                        if matched_option:
+                            gender_value = matched_option
+                        else:
+                            logger.warning(f"   [GENDER] No match found for gender value '{gender_value}' in options: {options}")
+                    else:
+                        logger.warning(f"   [GENDER] No options provided for gender field!")
                     filled_data['fields'][field_path] = gender_value
-                    logger.info(f"   ✅ Selected: {gender_value}")
+                    logger.info(f"   ✅ Selected gender: {gender_value}")
                     
                 elif 'race' in field_title.lower():
                     filled_data['fields'][field_path] = demographics.race

@@ -187,13 +187,16 @@ Provide ONLY the tailored resume text, no additional commentary."""
             for idx, job in enumerate(content['experience_jobs'], 1):
                 logger.info(f"\n   Job {idx}/{len(content['experience_jobs'])}: {job.get('company', 'Unknown')}")
                 original_bullets = [p['text'] for p in job['paras']]
+                
+                job_info = {
+                    'company': job.get('company', ''),
+                    'title': job.get('title', ''),
+                    'dates': job.get('dates', ''),
+                    'bullets': original_bullets
+                }
+                
                 tailored_bullets = self.ai_service.tailor_work_experience(
-                    {
-                        'company': job['company'],
-                        'title': job['title'],
-                        'dates': job['dates'],
-                        'bullets': original_bullets
-                    },
+                    job_info,
                     job_description,
                     job_title,
                     company
@@ -356,3 +359,447 @@ Provide ONLY the tailored resume text, no additional commentary."""
         
         logger.info(f"💾 Saved tailored resume: {filepath}")
         return str(filepath)
+    
+    def generate_resume_from_template(
+        self,
+        job_description: str,
+        job_title: str,
+        company: str
+    ) -> str:
+        """
+        Generate a complete resume from template by analyzing job description.
+        
+        Args:
+            job_description: Job description text
+            job_title: Job title
+            company: Company name
+            
+        Returns:
+            Path to generated resume file
+        """
+        logger.info(f"\n🎯 Generating resume from template for {job_title} at {company}")
+        
+        # Load template
+        template_path = self.original_resume_dir / "Resume.docx"
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template not found: {template_path}")
+        
+        doc = Document(str(template_path))
+        
+        # Get personal info from config (build from user_info if resume_personal_info not set)
+        if self.settings.user_info.resume_personal_info:
+            personal_info = self.settings.user_info.resume_personal_info.model_dump()
+        else:
+            # Build from existing user_info
+            personal_info = {
+                'full_name': self.settings.user_info.personal_info.name,
+                'location': f"{self.settings.user_info.personal_info.city}, {self.settings.user_info.personal_info.state_abbr}",
+                'phone': self.settings.user_info.personal_info.phone,
+                'email': self.settings.user_info.personal_info.email,
+                'linkedin': self.settings.user_info.links.linkedin.replace('https://www.linkedin.com/in/', ''),
+                'github': self.settings.user_info.links.github.replace('https://github.com/', ''),
+                'title': self.settings.user_info.background.current_title,
+                'years_experience': self.settings.user_info.background.years_of_experience,
+                'core_stack': 'Python, React, AWS, MLOps',
+                'value_statement': self.settings.user_info.background.elevator_pitch[:100]
+            }
+        
+        # Generate each section using AI
+        logger.info("📝 Generating header...")
+        header = self._generate_header(personal_info, job_description, job_title, company)
+        
+        logger.info("🔧 Generating skills...")
+        skills = self._generate_skills(job_description, job_title, company)
+        
+        logger.info("💼 Generating work experience...")
+        # Use real work experience from config and generate bullets for each
+        if self.settings.user_info.work_experience:
+            experience = self._generate_experience_with_config(
+                job_description, job_title, company, self.settings.user_info.work_experience
+            )
+        else:
+            experience = self._generate_experience(job_description, job_title, company)
+        
+        logger.info("🎓 Using education from config...")
+        # Use real education from config
+        if self.settings.user_info.education:
+            education = {
+                'degree': self.settings.user_info.education.degree,
+                'graduated': self.settings.user_info.education.graduated,
+                'gpa': self.settings.user_info.education.gpa or '',
+                'university': self.settings.user_info.education.university,
+                'location': self.settings.user_info.education.location,
+                'coursework': self.settings.user_info.education.coursework or 'Data Structures, Algorithms, Database Systems, Operating Systems, Computer Networks, Machine Learning'
+            }
+        else:
+            education = self._generate_education()
+        
+        # Replace template placeholders
+        self._fill_template(doc, header, skills, experience, education)
+        
+        # Save generated resume
+        safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
+        safe_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
+        
+        output_dir = self.tailored_resume_dir / f"{safe_company}_{safe_title}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename: FirstName_LastName_CompanyName_Resume.docx
+        first_name = personal_info['full_name'].split()[0] if personal_info['full_name'] else 'Resume'
+        last_name = personal_info['full_name'].split()[-1] if len(personal_info['full_name'].split()) > 1 else ''
+        filename = f"{first_name}_{last_name}_{safe_company}_Resume.docx" if last_name else f"{first_name}_{safe_company}_Resume.docx"
+        
+        output_file = output_dir / filename
+        doc.save(str(output_file))
+        
+        logger.info(f"✅ Generated resume: {output_file}")
+        return str(output_file)
+    
+    def _generate_header(self, personal_info: dict, job_description: str, job_title: str, company: str) -> dict:
+        """Generate professional header matching job requirements."""
+        
+        # Calculate years of experience from work history
+        years_experience = 10  # Default fallback
+        if self.settings.user_info.work_experience:
+            # Calculate from first job start date to current
+            try:
+                first_job = self.settings.user_info.work_experience[-1]  # Oldest job (last in list)
+                # Extract start year from dates like "Feb 2015 – Jan 2019"
+                start_date = first_job.dates.split('–')[0].strip()
+                start_year = int(start_date.split()[-1])
+                current_year = 2025
+                years_experience = current_year - start_year
+            except:
+                pass
+        
+        # Analyze job to determine professional title and core stack
+        prompt = f"""Based on this job description for {job_title} at {company}, generate a professional resume header.
+
+Job Description:
+{job_description[:1500]}
+
+Generate ONLY the following, one per line:
+1. Professional title (e.g., "Backend Engineer", "Full Stack Developer", "ML Engineer")
+2. Years of experience (just a number like "10+" or "8+")
+3. Core tech stack (3-5 key technologies from job description, comma-separated)
+4. Value statement (one impressive achievement, 10-15 words max)
+
+Format:
+[Professional Title]
+[Years like "10+"]
+[Tech1, Tech2, Tech3, Tech4]
+[Value statement with quantified impact]"""
+
+        response = self.ai_service.generate_completion(prompt).strip()
+        
+        # Clean AI response - remove markdown and extra text
+        response = response.replace('**', '')  # Remove bold markers
+        response = response.replace('*', '')   # Remove italic markers
+        # Remove common AI prefixes
+        for prefix in ['Here are the requested sections:', 'Here is:', 'Here are:', 'Response:', '|']:
+            response = response.replace(prefix, '')
+        response = response.strip()
+        
+        lines = [line.strip() for line in response.split('\n') if line.strip()]
+        
+        # Extract and clean title - make uppercase
+        title = lines[0] if len(lines) > 0 else job_title
+        title = title.replace('**', '').replace('*', '').strip()
+        title = title.upper()  # Make all caps
+        
+        return {
+            'full_name': personal_info['full_name'],
+            'location': personal_info['location'],
+            'phone': personal_info['phone'],
+            'email': personal_info['email'],
+            'linkedin': personal_info['linkedin'],
+            'github': personal_info['github'],
+            'title': title,
+            'years': lines[1] if len(lines) > 1 else f"{years_experience}+",
+            'core_stack': lines[2] if len(lines) > 2 else "Full Stack Development",
+            'value_statement': lines[3] if len(lines) > 3 else "Proven track record of delivering high-impact solutions"
+        }
+    
+    def _generate_skills(self, job_description: str, job_title: str, company: str) -> dict:
+        """Generate skills section based on job requirements."""
+        
+        prompt = f"""Analyze this job description for {job_title} at {company} and generate a comprehensive Technical Skills section.
+
+Job Description:
+{job_description[:2000]}
+
+Generate skills in these exact categories (one line per category):
+1. Languages: [programming languages]
+2. AI/ML: [if relevant - ML frameworks, tools]
+3. Frontend: [frontend frameworks and tools]
+4. Backend: [backend frameworks, APIs, architectures]
+5. Databases: [databases used]
+6. Cloud & DevOps: [cloud platforms, DevOps tools]
+7. Other: [other relevant technologies]
+
+Rules:
+- Include ONLY skills explicitly mentioned or strongly implied in the job description
+- Prioritize required skills over nice-to-have
+- Be specific (e.g., "React, Next.js" not just "React")
+- If a category isn't relevant, write "N/A"
+- Output format: "Category: skill1, skill2, skill3"
+
+Output the 7 lines:"""
+
+        response = self.ai_service.generate_completion(prompt).strip()
+        # Remove empty lines to avoid spacing issues
+        lines = [line.strip() for line in response.split('\n') if line.strip()]
+        
+        skills_dict = {}
+        for line in lines:
+            if ':' in line:
+                category, items = line.split(':', 1)
+                skills_dict[category.strip()] = items.strip()
+        
+        return skills_dict
+    
+    def _generate_experience(self, job_description: str, job_title: str, company: str) -> list:
+        """Generate work experience bullets for past jobs."""
+        
+        # Get work history from config
+        prompt = f"""Generate impressive work experience bullets for a resume targeting {job_title} at {company}.
+
+Job Description (what they want):
+{job_description[:2000]}
+
+Generate 4 past job experiences, each with:
+- Job Title | Company Name | Location | Dates (e.g., "Dec 2024 — Current")
+- 4-5 bullet points following this formula:
+  [Action Verb] [what you did] using [technology from job description], resulting in [quantified impact with metrics]
+
+Rules:
+1. Use technologies and skills from the job description
+2. Every bullet MUST have quantified metrics (%, $, time saved, users, etc.)
+3. Start with strong action verbs: Architected, Engineered, Optimized, Built, Deployed, Reduced, Increased
+4. Show progression: most recent job is most impressive
+5. Each bullet should be 1-2 lines max
+6. Make dates realistic (work backwards from current date)
+
+Format each job as:
+JOB_TITLE | COMPANY | LOCATION | DATES
+• Bullet point 1
+• Bullet point 2
+• Bullet point 3
+• Bullet point 4
+
+Generate all 4 jobs now:"""
+
+        response = self.ai_service.generate_completion(prompt, temperature=0.8).strip()
+        
+        # Parse the response into structured format
+        jobs = []
+        current_job = None
+        
+        for line in response.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Check if it's a job header (contains |)
+            if '|' in line and not line.startswith('•'):
+                if current_job:
+                    jobs.append(current_job)
+                
+                parts = [p.strip() for p in line.split('|')]
+                current_job = {
+                    'title': parts[0] if len(parts) > 0 else '',
+                    'company': parts[1] if len(parts) > 1 else '',
+                    'location': parts[2] if len(parts) > 2 else '',
+                    'dates': parts[3] if len(parts) > 3 else '',
+                    'bullets': []
+                }
+            elif line.startswith('•') and current_job:
+                bullet = line.lstrip('•').strip()
+                current_job['bullets'].append(bullet)
+        
+        if current_job:
+            jobs.append(current_job)
+        
+        return jobs[:4]  # Return max 4 jobs
+    
+    def _generate_experience_with_config(self, job_description: str, job_title: str, company: str, work_history: list) -> list:
+        """Generate work experience bullets using real work history from config."""
+        
+        jobs = []
+        for work in work_history:
+            # Generate bullets for this specific job
+            prompt = f"""Generate 4-5 impressive work experience bullets for this role, tailored to the target job.
+
+Target Job: {job_title} at {company}
+Target Job Description (what they want):
+{job_description[:2000]}
+
+Your Role:
+Title: {work.title}
+Company: {work.company}
+Location: {work.location}
+Dates: {work.dates}
+
+Generate 4-5 bullet points following this formula:
+[Action Verb] [what you did] using [technology from job description], resulting in [quantified impact with metrics]
+
+Rules:
+1. Use technologies and skills from the TARGET job description
+2. Every bullet MUST have quantified metrics (%, $, time saved, users, etc.)
+3. Start with strong action verbs: Architected, Engineered, Optimized, Built, Deployed, Reduced, Increased
+4. Each bullet should be 1-2 lines max
+5. Make it relevant to the TARGET job
+
+Output ONLY the bullets, one per line, starting with •"""
+
+            response = self.ai_service.generate_completion(prompt, temperature=0.8).strip()
+            
+            # Parse bullets
+            bullets = []
+            for line in response.split('\n'):
+                line = line.strip()
+                if line.startswith('•'):
+                    bullet = line.lstrip('•').strip()
+                    bullets.append(bullet)
+            
+            if bullets:
+                jobs.append({
+                    'title': work.title,
+                    'company': work.company,
+                    'location': work.location,
+                    'dates': work.dates,
+                    'bullets': bullets[:5]  # Max 5 bullets
+                })
+        
+        return jobs
+    
+    def _generate_education(self) -> dict:
+        """Generate education section."""
+        # For now, use a template - can be enhanced later
+        return {
+            'degree': 'Bachelor of Science in Computer Science',
+            'graduated': 'May 2015',
+            'gpa': '3.8/4.0',
+            'university': 'University of Technology',
+            'location': 'Boston, MA',
+            'coursework': 'Data Structures, Algorithms, Database Systems, Operating Systems, Computer Networks, Machine Learning'
+        }
+    
+    def _fill_template(self, doc: Document, header: dict, skills: dict, experience: list, education: dict):
+        """Fill the template with generated content while preserving formatting."""
+        
+        for paragraph in doc.paragraphs:
+            text = paragraph.text
+            
+            # Replace header placeholders while preserving formatting
+            if '[Full Name]' in text:
+                self._replace_text_in_paragraph(paragraph, '[Full Name]', header['full_name'])
+            elif '[Location]' in text and 'xxx' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"{header['location']} | {header['phone']} | {header['email']}")
+            elif 'LinkedIn:' in text and 'xxxxx' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"LinkedIn: {header['linkedin']} | GitHub: {header['github']}")
+            elif 'PROFESSIONAL TITLE' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"{header['title']} | {header['years']}+ YEARS | {header['core_stack']} | {header['value_statement']}")
+            
+            # Replace skills placeholders
+            elif text.startswith('Languages:') and '[List' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Languages: {skills.get('Languages', 'Python, JavaScript, TypeScript')}")
+            elif text.startswith('AI/ML') and '[List' in text:
+                ai_ml = skills.get('AI/ML', skills.get('AI/ML (if applicable)', ''))
+                if ai_ml and ai_ml != 'N/A':
+                    self._replace_text_in_paragraph(paragraph, text, f"AI/ML: {ai_ml}")
+                else:
+                    paragraph.clear()
+            elif text.startswith('Frontend:') and '[List' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Frontend: {skills.get('Frontend', 'React, Next.js')}")
+            elif text.startswith('Backend:') and '[List' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Backend: {skills.get('Backend', 'Node.js, Flask, REST APIs')}")
+            elif text.startswith('Databases:') and '[List' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Databases: {skills.get('Databases', 'PostgreSQL, MongoDB, Redis')}")
+            elif text.startswith('Cloud & DevOps:') and '[List' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Cloud & DevOps: {skills.get('Cloud & DevOps', 'AWS, Docker, Kubernetes')}")
+            elif text.startswith('Other:') and '[List' in text:
+                other = skills.get('Other', '')
+                if other and other != 'N/A':
+                    self._replace_text_in_paragraph(paragraph, text, f"Other: {other}")
+                else:
+                    paragraph.clear()
+        
+        # Replace experience section - track which job/bullet we're filling
+        current_job_idx = -1
+        current_bullet_idx = -1
+        
+        for paragraph in doc.paragraphs:
+            text = paragraph.text
+            
+            # Job headers with pipe separator
+            if '|' in text and '[' in text and ']' in text:
+                # This is a job header line
+                if '[Job Title]' in text or 'Job Title' in text.replace('[', '').replace(']', ''):
+                    current_job_idx = 0
+                    current_bullet_idx = -1
+                elif '[Previous Job Title]' in text or 'Previous Job' in text.replace('[', '').replace(']', ''):
+                    current_job_idx = 1
+                    current_bullet_idx = -1
+                elif '[Another Role' in text or '[Third' in text or '[Job 3' in text:
+                    current_job_idx = 2
+                    current_bullet_idx = -1
+                elif '[Fourth' in text or '[Job 4' in text:
+                    current_job_idx = 3
+                    current_bullet_idx = -1
+                
+                # Replace with actual job data
+                if 0 <= current_job_idx < len(experience):
+                    job = experience[current_job_idx]
+                    self._replace_text_in_paragraph(paragraph, text, f"{job['title']} | {job['company']} | {job['location']} | {job['dates']}")
+                else:
+                    paragraph.clear()
+            
+            # Bullet points
+            elif text.startswith('•') and '[' in text:
+                current_bullet_idx += 1
+                if 0 <= current_job_idx < len(experience):
+                    if current_bullet_idx < len(experience[current_job_idx]['bullets']):
+                        bullet = experience[current_job_idx]['bullets'][current_bullet_idx]
+                        self._replace_text_in_paragraph(paragraph, text, f"• {bullet}")
+                    else:
+                        paragraph.clear()
+                else:
+                    paragraph.clear()
+            
+            # Clear template instructions
+            elif '[Focus on impact' in text or '[Include collaboration' in text or '[Always quantify' in text:
+                paragraph.clear()
+            elif '[Each bullet' in text or '[Remember' in text or '[Template' in text:
+                paragraph.clear()
+            
+            # Replace education placeholders
+            elif '[Degree Name]' in text:
+                self._replace_text_in_paragraph(paragraph, '[Degree Name]', education['degree'])
+            elif 'Graduated:' in text and '[Month Year]' in text:
+                if education.get('gpa'):
+                    self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']} GPA: {education['gpa']}")
+                else:
+                    self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']}")
+            elif '[University Name]' in text:
+                self._replace_text_in_paragraph(paragraph, '[University Name]', education['university'])
+            elif text == '[City, State]':
+                self._replace_text_in_paragraph(paragraph, '[City, State]', education['location'])
+            elif 'Relevant Coursework:' in text and 'Data Structures' in text:
+                self._replace_text_in_paragraph(paragraph, text, f"Relevant Coursework: {education['coursework']}")
+    
+    def _replace_text_in_paragraph(self, paragraph, old_text: str, new_text: str):
+        """Replace text in paragraph while preserving formatting."""
+        if old_text in paragraph.text:
+            # Store original formatting
+            if paragraph.runs:
+                original_font = paragraph.runs[0].font
+                paragraph.clear()
+                run = paragraph.add_run(new_text)
+                # Apply original formatting
+                run.font.name = original_font.name
+                run.font.size = original_font.size
+                run.font.bold = original_font.bold
+                run.font.italic = original_font.italic
+            else:
+                paragraph.text = new_text

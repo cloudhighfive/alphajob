@@ -84,15 +84,46 @@ class Files(BaseModel):
     cover_letter_template: Optional[str] = None
 
 
+class ResumePersonalInfo(BaseModel):
+    """Personal info specifically for resume generation."""
+    full_name: str
+    location: str
+    phone: str
+    email: str
+    linkedin: str
+    github: str
+
+
+class WorkExperience(BaseModel):
+    """Work experience entry."""
+    title: str
+    company: str
+    location: str
+    dates: str
+
+
+class Education(BaseModel):
+    """Education information."""
+    degree: str
+    university: str
+    location: str
+    graduated: str
+    coursework: Optional[str] = ""
+    gpa: Optional[str] = ""
+
+
 class UserInfo(BaseModel):
     """Complete user information."""
     personal_info: PersonalInfo
     links: Links
     work_authorization: WorkAuthorization
     demographics: Demographics
-    background: Background
+    background: Optional[Background] = None
     preferences: Preferences
     files: Files
+    resume_personal_info: Optional[ResumePersonalInfo] = None
+    work_experience: Optional[List[WorkExperience]] = None
+    education: Optional[Education] = None
 
 
 class AISettings(BaseModel):

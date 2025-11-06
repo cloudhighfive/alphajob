@@ -6,8 +6,6 @@ from typing import Dict, Optional, List
 from pathlib import Path
 import time
 import random
-import tempfile
-import shutil
 import signal
 
 from src.config.settings import Settings
@@ -70,33 +68,32 @@ class BrowserService:
             logger.info(f"   📊 Fields to fill: {len(filled_data)}")
             
             with sync_playwright() as p:
-                # Create a temporary profile directory
-                profile_dir = tempfile.mkdtemp(prefix="chrome_profile_")
-                logger.info(f"   📁 Created temporary Chrome profile")
-                
                 try:
-                    logger.info(f"   🚀 Launching Chrome browser (headless={self.headless})...")
-                    browser_context = p.chromium.launch_persistent_context(
-                        user_data_dir=profile_dir,
-                        channel="chrome",  # Real Chrome, not Chromium
+                    logger.info(f"   🚀 Launching Chromium browser (headless={self.headless})...")
+                    
+                    # Use simple browser launch (not persistent context)
+                    browser = p.chromium.launch(
                         headless=self.headless,
                         args=[
                             '--disable-blink-features=AutomationControlled',
                             '--disable-dev-shm-usage',
-                            '--disable-infobars',
                             '--no-first-run',
-                            '--no-service-autorun',
-                            '--password-store=basic',
-                            '--disable-automation',
+                            '--no-default-browser-check',
                             '--disable-background-timer-throttling',
                             '--disable-backgrounding-occluded-windows',
                             '--disable-renderer-backgrounding',
-                        ],
-                        ignore_default_args=['--enable-automation', '--no-sandbox', '--disable-setuid-sandbox'],
+                        ]
+                    )
+                    
+                    # Create a clean context with realistic settings
+                    browser_context = browser.new_context(
                         viewport={'width': 1920, 'height': 1080},
                         user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         locale='en-US',
                         timezone_id='America/New_York',
+                        permissions=[],
+                        geolocation=None,
+                        color_scheme='light'
                     )
                     
                     page = browser_context.pages[0] if browser_context.pages else browser_context.new_page()
@@ -130,16 +127,19 @@ class BrowserService:
                     
                     # Submit or manual review
                     if not self.auto_submit:
-                        result = self._manual_submit(browser_context, profile_dir)
+                        result = self._manual_submit(browser_context, browser)
                     else:
-                        result = self._auto_submit(page, browser_context, profile_dir)
+                        result = self._auto_submit(page, browser_context, browser)
                     
                     return result
                     
                 except Exception as e:
                     logger.error(f"   ⚠️  Browser context error: {e}")
-                    if profile_dir:
-                        shutil.rmtree(profile_dir, ignore_errors=True)
+                    try:
+                        browser_context.close()
+                        browser.close()
+                    except:
+                        pass
                     raise
                     
         except ImportError:
@@ -427,39 +427,138 @@ class BrowserService:
         logger.info(f"   📄 Saved page HTML for debugging: {html_path}")
     
     def _fill_form_fields(self, page, filled_data: Dict, form_fields: List[Dict], resume_path: Optional[str]):
-        """Fill all form fields."""
+        """Fill all form fields with advanced human-like anti-spam strategies."""
         logger.info(f"   📝 Starting to fill {len(form_fields)} form fields...")
-        
-        # Track boolean button clicks
+
         boolean_yes_clicks = 0
         boolean_no_clicks = 0
-        
         filled_count = 0
         skipped_count = 0
         error_count = 0
-        
-        for field in form_fields:
+
+        # Randomize field order and simulate skipping/returning
+        field_indices = list(range(len(form_fields)))
+        random.shuffle(field_indices)
+        skip_chance = 0.15  # 15% chance to skip a field and return later
+        skipped_fields = []
+
+        def simulate_mouse_hover_and_scroll():
+            """Simulate human-like mouse movement with Bezier curves for organic motion."""
+            width = page.viewport_size['width'] if page.viewport_size else 1920
+            height = page.viewport_size['height'] if page.viewport_size else 1080
+            
+            # Get current mouse position (or start from random)
+            start_x = random.randint(0, width-1)
+            start_y = random.randint(0, height-1)
+            end_x = random.randint(0, width-1)
+            end_y = random.randint(0, height-1)
+            
+            # Use Bezier curve for organic mouse movement
+            steps = random.randint(15, 40)
+            for step in range(steps):
+                t = step / steps
+                # Cubic Bezier curve with random control points
+                control1_x = start_x + random.randint(-100, 100)
+                control1_y = start_y + random.randint(-100, 100)
+                control2_x = end_x + random.randint(-100, 100)
+                control2_y = end_y + random.randint(-100, 100)
+                
+                # Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+                x = int((1-t)**3 * start_x + 3*(1-t)**2*t * control1_x + 3*(1-t)*t**2 * control2_x + t**3 * end_x)
+                y = int((1-t)**3 * start_y + 3*(1-t)**2*t * control1_y + 3*(1-t)*t**2 * control2_y + t**3 * end_y)
+                
+                # Clamp to viewport
+                x = max(0, min(width-1, x))
+                y = max(0, min(height-1, y))
+                
+                page.mouse.move(x, y)
+                page.wait_for_timeout(random.randint(5, 20))
+            
+            # Random scroll
+            if random.random() < 0.5:
+                scroll_y = random.randint(0, height)
+                page.evaluate(f"window.scrollTo(0, {scroll_y})")
+            # Random hover/click
+            if random.random() < 0.2:
+                page.mouse.click(end_x, end_y, delay=random.randint(20, 120))
+            page.wait_for_timeout(random.randint(100, 400))
+
+        def focus_and_blur(element):
+            try:
+                element.focus()
+                page.wait_for_timeout(random.randint(80, 200))
+                if random.random() < 0.2:
+                    element.blur()
+                    page.wait_for_timeout(random.randint(50, 120))
+                    element.focus()
+            except Exception:
+                pass
+
+        def human_type(element, text):
+            """Type with realistic human behavior: random delays, typos, corrections."""
+            typo_chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+            text_list = list(text)
+            i = 0
+            
+            while i < len(text_list):
+                char = text_list[i]
+                delay = random.randint(30, 120)
+                
+                # Occasionally make a typo (5% chance)
+                if random.random() < 0.05 and char.lower() in typo_chars:
+                    # Type wrong character
+                    wrong_char = random.choice(typo_chars)
+                    element.type(wrong_char, delay=delay)
+                    page.wait_for_timeout(random.randint(100, 300))
+                    # Backspace to correct
+                    element.press('Backspace')
+                    page.wait_for_timeout(random.randint(50, 150))
+                    # Type correct character
+                    element.type(char, delay=delay)
+                else:
+                    # Type normally
+                    element.type(char, delay=delay)
+                
+                # Mid-word pause
+                if i > 0 and i % random.randint(4, 8) == 0 and random.random() < 0.25:
+                    page.wait_for_timeout(random.randint(200, 600))
+                
+                i += 1
+
+        i = 0
+        while i < len(field_indices):
+            idx = field_indices[i]
+            field = form_fields[idx]
             field_path = field['path']
             field_title = field['title']
             field_type = field['type']
             value = filled_data.get(field_path)
-            
+
             logger.info(f"      � {field_title} ({field_type})")
-            
+
             if value is None:
                 logger.warning(f"         ⏭️  Skipped (no value)")
                 skipped_count += 1
+                i += 1
                 continue
-            
+
             if len(str(value)) > 80:
                 logger.info(f"         � Value: {str(value)[:77]}...")
             else:
                 logger.info(f"         💬 Value: {value}")
-            
+
             try:
                 element = self._find_form_element(page, field, field_path, field_title, field_type)
-                
                 if element and element.count() > 0:
+                    simulate_mouse_hover_and_scroll()
+                    focus_and_blur(element)
+                    # Randomly skip and return to this field
+                    if random.random() < skip_chance and idx not in skipped_fields:
+                        logger.info(f"         ⏭️  Simulating human skip, will return later...")
+                        skipped_fields.append(idx)
+                        field_indices.append(idx)
+                        i += 1
+                        continue
                     if field_type == 'File':
                         self._fill_file_field(element, resume_path, field_title)
                         filled_count += 1
@@ -474,29 +573,89 @@ class BrowserService:
                     elif field_type in ['ValueSelect', 'MultiValueSelect']:
                         self._fill_select_field(page, element, value, field_type, field_title)
                         filled_count += 1
+                    elif field_type in ['Text', 'Textarea', 'Input']:
+                        # Use human_type for text fields
+                        element.scroll_into_view_if_needed()
+                        time.sleep(random.uniform(0.2, 0.5))
+                        element.click()
+                        time.sleep(random.uniform(0.3, 0.6))
+                        element.fill('')
+                        time.sleep(0.1)
+                        human_type(element, str(value))
+                        time.sleep(random.uniform(0.3, 0.7))
+                        filled_value = element.input_value()
+                        expected_length = len(str(value))
+                        actual_length = len(filled_value) if filled_value else 0
+                        if actual_length >= expected_length - 10:
+                            logger.info(f"      ✅ Filled: {field_title} ({actual_length}/{expected_length} chars)")
+                        else:
+                            logger.warning(f"      ⚠️  Incomplete fill: {field_title} ({actual_length}/{expected_length} chars)")
+                        filled_count += 1
                     else:
                         self._fill_text_field(element, value, field_title)
                         filled_count += 1
                     
-                    # Human-like delay between fields
-                    time.sleep(random.uniform(0.5, 1.5))
+                    # Context-aware pause: longer for complex fields, shorter for simple
+                    pause_time = self._calculate_context_aware_pause(field_type, str(value), field_title)
+                    page.wait_for_timeout(pause_time)
+                    
+                    # Occasionally scroll back up to review (simulate re-reading)
+                    if random.random() < 0.15 and i > 3:
+                        logger.info(f"         🔄 Simulating re-reading behavior...")
+                        current_scroll = page.evaluate("window.scrollY")
+                        scroll_back = random.randint(200, 600)
+                        page.evaluate(f"window.scrollTo(0, {max(0, current_scroll - scroll_back)})")
+                        page.wait_for_timeout(random.randint(800, 2000))
+                        page.evaluate(f"window.scrollTo(0, {current_scroll})")
+                        page.wait_for_timeout(random.randint(300, 700))
                 else:
                     logger.warning(f"         ⚠️  Element not found")
                     error_count += 1
-            
             except Exception as e:
                 logger.error(f"         ❌ Error: {str(e)[:80]}")
                 error_count += 1
-        
+            i += 1
+
         # Summary
         logger.info(f"\n   📊 Field filling summary:")
         logger.info(f"      ✅ Filled: {filled_count}")
         logger.info(f"      ⏭️  Skipped: {skipped_count}")
         logger.info(f"      ❌ Errors: {error_count}")
     
+    def _calculate_context_aware_pause(self, field_type: str, value: str, field_title: str) -> int:
+        """Calculate realistic pause time based on field complexity."""
+        base_pause = 400
+        
+        # Complex fields need longer thinking time
+        if field_type == 'Textarea':
+            # Long text needs more thinking
+            base_pause = 800 + len(value) * 2
+        elif field_type in ['ValueSelect', 'MultiValueSelect']:
+            # Dropdowns need time to read options
+            base_pause = 600
+        elif field_type == 'Boolean':
+            # Yes/No questions are quick
+            base_pause = 300
+        elif field_type == 'File':
+            # File upload is quick once selected
+            base_pause = 500
+        elif field_type == 'Location':
+            # Location needs time to think about address
+            base_pause = 700
+        else:
+            # Text fields: longer for complex questions
+            if any(word in field_title.lower() for word in ['experience', 'why', 'describe', 'explain']):
+                base_pause = 1000
+            elif len(value) > 100:
+                base_pause = 600
+        
+        # Add randomness to make it more human
+        variance = random.randint(-200, 400)
+        return max(200, base_pause + variance)
+    
     
     def _find_form_element(self, page, field: Dict, field_path: str, field_title: str, field_type: str):
-        """Find form element using multiple strategies."""
+        """Find form element using multiple robust strategies to combat masked/randomized classes."""
         element = None
         
         # Build selectors based on field type
@@ -551,8 +710,9 @@ class BrowserService:
             except:
                 continue
         
-        # Fallback: try label-based approach
+        # Enhanced fallback strategies for masked/randomized elements
         if not element:
+            # Strategy 1: Label-based with nearby input
             try:
                 labels = page.locator(f'text="{field_title}" >> xpath=..')
                 if labels.count() > 0:
@@ -560,6 +720,87 @@ class BrowserService:
                     nearby_inputs = parent.locator('input, textarea, select')
                     if nearby_inputs.count() > 0:
                         element = nearby_inputs.first
+                        logger.info(f"         ✓ Found via label strategy")
+            except:
+                pass
+        
+        if not element:
+            # Strategy 2: Fuzzy text matching with XPath
+            try:
+                # Try to find label with similar text (case-insensitive, partial match)
+                field_title_lower = field_title.lower()
+                field_title_words = field_title_lower.split()
+                for word in field_title_words:
+                    if len(word) > 3:  # Only use meaningful words
+                        xpath = f"//label[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{word}')]"
+                        labels = page.locator(f'xpath={xpath}')
+                        if labels.count() > 0:
+                            label = labels.first
+                            # Try to get associated input via 'for' attribute
+                            label_for = label.get_attribute('for')
+                            if label_for:
+                                input_by_id = page.locator(f'#{label_for}')
+                                if input_by_id.count() > 0:
+                                    element = input_by_id.first
+                                    logger.info(f"         ✓ Found via fuzzy label-for: '{word}'")
+                                    break
+                            # Or find nearby input
+                            parent = label.locator('xpath=..')
+                            nearby = parent.locator('input, textarea, select')
+                            if nearby.count() > 0:
+                                element = nearby.first
+                                logger.info(f"         ✓ Found via fuzzy label nearby: '{word}'")
+                                break
+            except:
+                pass
+        
+        if not element:
+            # Strategy 3: XPath by input type and position
+            try:
+                if field_type in ['Text', 'Input']:
+                    # Find all text inputs and try to match by context
+                    all_inputs = page.locator('xpath=//input[@type="text" or not(@type)]').all()
+                    for inp in all_inputs:
+                        # Check if any nearby text contains our field title
+                        try:
+                            parent = inp.locator('xpath=..')
+                            parent_text = parent.inner_text().lower()
+                            if field_title.lower() in parent_text:
+                                element = inp
+                                logger.info(f"         ✓ Found via XPath context matching")
+                                break
+                        except:
+                            continue
+                elif field_type == 'Textarea':
+                    all_textareas = page.locator('xpath=//textarea').all()
+                    for ta in all_textareas:
+                        try:
+                            parent = ta.locator('xpath=..')
+                            parent_text = parent.inner_text().lower()
+                            if field_title.lower() in parent_text:
+                                element = ta
+                                logger.info(f"         ✓ Found textarea via XPath context")
+                                break
+                        except:
+                            continue
+            except:
+                pass
+        
+        if not element:
+            # Strategy 4: Visual position - find by proximity to text
+            try:
+                # Find text node containing field title
+                text_nodes = page.locator(f'xpath=//*[contains(translate(text(), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "{field_title.lower()}")][not(self::script)][not(self::style)]').all()
+                for text_node in text_nodes:
+                    try:
+                        # Find first input after this text node in DOM order
+                        following_inputs = text_node.locator('xpath=following::input[1] | following::textarea[1] | following::select[1]')
+                        if following_inputs.count() > 0:
+                            element = following_inputs.first
+                            logger.info(f"         ✓ Found via visual position (following element)")
+                            break
+                    except:
+                        continue
             except:
                 pass
         
@@ -900,37 +1141,35 @@ class BrowserService:
             if gender_heading.count() > 0:
                 logger.info(f"   📋 Found Gender identity field")
                 gender_heading.scroll_into_view_if_needed()
-                
-                gender_fieldset = gender_heading.locator('xpath=ancestor::fieldset').first
-                if gender_fieldset.count() == 0:
-                    gender_fieldset = gender_heading.locator('xpath=..').first
-                
-                if not gender_fieldset:
-                    raise Exception("Could not find fieldset container")
-                
-                # Find radio inputs and select by index
-                radio_inputs = gender_fieldset.locator('input[type="radio"]').all()
-                logger.info(f"   🔍 Found {len(radio_inputs)} radio inputs")
-                
-                # Map by position: Woman=0, Man=1, etc.
-                for i, radio in enumerate(radio_inputs):
+
+                # Find all radio inputs after the heading in the DOM
+                radio_inputs = gender_heading.locator('xpath=following::input[@type="radio"]').all()
+                logger.info(f"   🔍 (Fixed) Found {len(radio_inputs)} radio inputs after heading")
+
+                # Log all radio labels for debugging
+                for idx, radio in enumerate(radio_inputs):
                     input_id = radio.get_attribute('id')
-                    label_for_input = gender_fieldset.locator(f'label[for="{input_id}"]').first
-                    
-                    if gender_value.lower() == 'man' and i == 1:
-                        label_for_input.scroll_into_view_if_needed()
+                    label = page.locator(f'label[for="{input_id}"]').first if input_id else None
+                    label_text = label.inner_text() if label and label.count() > 0 else "(no label)"
+                    logger.info(f"      [{idx}] id={input_id} label={label_text}")
+
+                # Now select the correct radio based on gender_value (exact match only)
+                gender_value_lower = gender_value.strip().lower()
+                found = False
+                for radio in radio_inputs:
+                    input_id = radio.get_attribute('id')
+                    label = page.locator(f'label[for="{input_id}"]').first if input_id else None
+                    label_text = label.inner_text().strip() if label and label.count() > 0 else ""
+                    if label_text.lower() == gender_value_lower:
+                        label.scroll_into_view_if_needed()
                         time.sleep(0.3)
-                        label_for_input.click()
+                        label.click()
                         time.sleep(0.5)
-                        logger.info(f"      ✅ Selected Gender: {gender_value}")
+                        logger.info(f"      ✅ Selected Gender: {label_text}")
+                        found = True
                         break
-                    elif gender_value.lower() == 'woman' and i == 0:
-                        label_for_input.scroll_into_view_if_needed()
-                        time.sleep(0.3)
-                        label_for_input.click()
-                        time.sleep(0.5)
-                        logger.info(f"      ✅ Selected Gender: {gender_value}")
-                        break
+                if not found:
+                    logger.warning(f"      ⚠️  Could not find radio for gender value: {gender_value}")
         except Exception as e:
             logger.error(f"      ⚠️  Gender field error: {str(e)[:150]}")
     
@@ -980,7 +1219,7 @@ class BrowserService:
         except Exception as e:
             logger.error(f"      ⚠️  Veteran field error: {str(e)[:50]}")
     
-    def _manual_submit(self, browser_context, profile_dir: str) -> Dict:
+    def _manual_submit(self, browser_context, browser) -> Dict:
         """Handle manual submission workflow."""
         logger.info(f"\n" + "="*70)
         logger.info(f"   🛑 AUTO-SUBMIT DISABLED (Spam Detection Bypass)")
@@ -997,18 +1236,17 @@ class BrowserService:
         input()
         logger.info(f"   ✅ Closing browser...")
         browser_context.close()
-        if profile_dir and profile_dir.startswith('/tmp'):
-            shutil.rmtree(profile_dir, ignore_errors=True)
+        browser.close()
         return {
             'success': True,
             'status': 'manual_submit',
             'message': 'Form filled, human submitted manually'
         }
     
-    def _auto_submit(self, page, browser_context, profile_dir: str) -> Dict:
+    def _auto_submit(self, page, browser_context, browser) -> Dict:
         """Handle automatic submission workflow."""
         logger.info(f"\n   ⏳ Looking for submit button...")
-        
+        self._simulate_human_behavior(page)
         submit_selectors = [
             'button:has-text("Submit Application")',
             'button:has-text("Submit")',
@@ -1016,7 +1254,6 @@ class BrowserService:
             'input[type="submit"]',
             'button[type="submit"]'
         ]
-        
         submitted = False
         for selector in submit_selectors:
             try:
@@ -1026,18 +1263,17 @@ class BrowserService:
                     logger.info(f"   🚀 Clicking submit button: {selector}")
                     button = page.locator(selector).first
                     button.scroll_into_view_if_needed()
+                    self._simulate_human_behavior(page)
                     button.click()
                     submitted = True
                     break
             except Exception as e:
                 logger.warning(f"      ⚠️  Error with selector '{selector}': {str(e)[:50]}")
                 continue
-        
         if submitted:
             logger.info(f"   ⏳ Waiting for submission to process...")
-            
-            # Check for CAPTCHA
-            if page.locator('iframe[title*="recaptcha" i], iframe[src*="captcha" i]').count() > 0:
+            # Check for CAPTCHA before and after submit
+            if self._detect_captcha(page):
                 logger.info(f"\n" + "="*70)
                 logger.info(f"   🤖 CAPTCHA DETECTED!")
                 logger.info(f"   " + "="*70)
@@ -1045,19 +1281,26 @@ class BrowserService:
                 logger.info(f"   Press ENTER after solving the CAPTCHA...")
                 logger.info(f"   " + "="*70 + "\n")
                 input()
-            
-            # Wait for confirmation
             page.wait_for_load_state('networkidle', timeout=30000)
-            
+            # Check for CAPTCHA again after load
+            if self._detect_captcha(page):
+                logger.info(f"\n" + "="*70)
+                logger.info(f"   🤖 CAPTCHA STILL PRESENT after submit!")
+                logger.info(f"   Please solve the CAPTCHA manually in the browser window.")
+                logger.info(f"   Press ENTER after solving the CAPTCHA...")
+                logger.info(f"   " + "="*70 + "\n")
+                input()
             # Take post-submit screenshot
             post_submit_path = get_post_submit_screenshot_path()
             page.screenshot(path=str(post_submit_path))
             logger.info(f"   📸 Screenshot saved: {post_submit_path}")
-            
             # Check for success/error
             page_content = page.content().lower()
             if 'spam' in page_content or 'flagged' in page_content:
                 logger.warning(f"\n   ⚠️  WARNING: Application may have been flagged as spam!")
+                # Dump HTML for debugging
+                logger.info(f"   ⚠️  Dumping page HTML for spam debug:")
+                logger.info(page.content()[:2000])
                 status = 'flagged'
                 success = False
                 message = 'Application flagged as spam'
@@ -1076,23 +1319,50 @@ class BrowserService:
             status = 'failed'
             success = False
             message = 'Submit button not found'
-        
         # Keep browser open for inspection
         logger.info(f"\n   ⏸️  Browser kept open for inspection...")
         logger.info(f"   ℹ️  Status: {status}")
         logger.info(f"   ℹ️  Message: {message}")
         logger.info(f"   ℹ️  Check the browser window to verify submission")
         logger.info(f"   ℹ️  Press Ctrl+C when done\n")
-        
         def handler(signum, frame):
             logger.info(f"\n   🛑 Closing browser...")
             browser_context.close()
-            if profile_dir:
-                shutil.rmtree(profile_dir, ignore_errors=True)
+            browser.close()
             exit(0)
-        
         signal.signal(signal.SIGINT, handler)
-        
         # Wait indefinitely
         while True:
             time.sleep(1)
+    
+    def _detect_captcha(self, page):
+        """Detect if a CAPTCHA is present on the page."""
+        # Check for iframes
+        if page.locator('iframe[title*="recaptcha" i], iframe[src*="captcha" i]').count() > 0:
+            logger.info("   🤖 CAPTCHA detected via iframe!")
+            return True
+        # Check for elements with class or id containing 'captcha'
+        if page.locator('[class*="captcha" i], [id*="captcha" i]').count() > 0:
+            logger.info("   🤖 CAPTCHA detected via class/id!")
+            return True
+        # Check for visible text
+        if page.locator('text=/captcha/i').count() > 0:
+            logger.info("   🤖 CAPTCHA detected via visible text!")
+            return True
+        return False
+
+    def _simulate_human_behavior(self, page):
+        """Simulate human-like mouse movement and scrolling."""
+        import random
+        width = page.viewport_size['width'] if page.viewport_size else 1920
+        height = page.viewport_size['height'] if page.viewport_size else 1080
+        for _ in range(random.randint(3, 7)):
+            x = random.randint(0, width-1)
+            y = random.randint(0, height-1)
+            page.mouse.move(x, y, steps=random.randint(10, 30))
+            page.wait_for_timeout(random.randint(100, 400))
+        # Scroll randomly
+        for _ in range(random.randint(1, 3)):
+            scroll_y = random.randint(0, height)
+            page.evaluate(f"window.scrollTo(0, {scroll_y})")
+            page.wait_for_timeout(random.randint(200, 600))

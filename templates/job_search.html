@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Job Search & Enricher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .search-form {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .results.active {
+            display: block;
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .results-count {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .job-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        
+        .job-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .job-company {
+            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .job-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .job-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .job-description {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .job-url {
+            margin-top: 12px;
+        }
+        
+        .job-url a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .job-url a:hover {
+            text-decoration: underline;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Job Search & Enricher</h1>
+            <p class="subtitle">Search, extract, and enrich job postings from any job board</p>
+        </div>
+        
+        <div class="search-form">
+            <form id="searchForm">
+                <div class="form-group">
+                    <label for="keyword">🔍 Search Keyword</label>
+                    <input type="text" id="keyword" placeholder="e.g., senior software engineer" value="senior software engineer" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="site">🌐 Job Site</label>
+                        <input type="text" id="site" placeholder="e.g., jobs.ashbyhq.com" value="jobs.ashbyhq.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxResults">📊 Max Results</label>
+                        <input type="number" id="maxResults" min="5" max="100" step="5" value="20" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="submit">🚀 Search & Enrich</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p><strong>Searching and enriching jobs...</strong></p>
+            <p>This may take a few minutes. Please wait.</p>
+        </div>
+        
+        <div id="message"></div>
+        
+        <div class="results" id="results">
+            <div class="results-header">
+                <div class="results-count" id="resultsCount"></div>
+                <div id="savedFile"></div>
+            </div>
+            <div id="jobList"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const keyword = document.getElementById('keyword').value;
+            const site = document.getElementById('site').value;
+            const maxResults = document.getElementById('maxResults').value;
+            
+            // Show loading, hide results
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('message').innerHTML = '';
+            
+            // Disable form
+            document.querySelector('button[type="submit"]').disabled = true;
+            
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ keyword, site, max_results: maxResults })
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading
+                document.getElementById('loading').classList.remove('active');
+                
+                if (response.ok && data.success) {
+                    // Show success message
+                    document.getElementById('message').innerHTML = 
+                        `<div class="success">✅ Successfully found and enriched ${data.count} jobs! Saved to: ${data.filename}</div>`;
+                    
+                    // Display results
+                    displayJobs(data.jobs);
+                    document.getElementById('resultsCount').textContent = 
+                        `Found ${data.count} job${data.count !== 1 ? 's' : ''}`;
+                    document.getElementById('savedFile').textContent = 
+                        `💾 Saved to: ${data.filename}`;
+                    document.getElementById('results').classList.add('active');
+                } else {
+                    // Show error
+                    document.getElementById('message').innerHTML = 
+                        `<div class="error">❌ Error: ${data.error || 'Unknown error occurred'}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('message').innerHTML = 
+                    `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                // Re-enable form
+                document.querySelector('button[type="submit"]').disabled = false;
+            }
+        });
+        
+        function displayJobs(jobs) {
+            const jobList = document.getElementById('jobList');
+            jobList.innerHTML = '';
+            
+            jobs.forEach((job, index) => {
+                const card = document.createElement('div');
+                card.className = 'job-card';
+                
+                const description = job.description ? 
+                    job.description.substring(0, 300) + '...' : 
+                    'No description available';
+                
+                card.innerHTML = `
+                    <div class="job-title">${job.job_title || 'Unknown Title'}</div>
+                    <div class="job-company">🏢 ${job.company || 'Unknown Company'}</div>
+                    <div class="job-meta">
+                        <div class="job-meta-item">📍 ${job.location || 'N/A'}</div>
+                        <div class="job-meta-item">💼 ${job.job_type || 'N/A'}</div>
+                        <div class="job-meta-item">⏰ ${job.employment_type || 'N/A'}</div>
+                        ${job.salary ? `<div class="job-meta-item">💰 ${job.salary}</div>` : ''}
+                        ${job.date_posted ? `<div class="job-meta-item">📅 ${job.date_posted}</div>` : ''}
+                    </div>
+                    <div class="job-description">${description}</div>
+                    <div class="job-url">
+                        <a href="${job.url}" target="_blank">🔗 View Job Posting →</a>
+                    </div>
+                `;
+                
+                jobList.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
