@@ -171,7 +171,7 @@ HTML_TEMPLATE = '''
                     </div>
                     <div class="form-group">
                         <label>Job URL</label>
-                        <input type="text" id="jobUrl" value="https://jobs.ashbyhq.com/rillet/f5d21c85-4fd2-461b-b5aa-3ece7d9f6bac" placeholder="https://jobs.ashbyhq.com/..." required>
+                        <input type="text" id="jobUrl" value="" placeholder="https://jobs.ashbyhq.com/..." required>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <button type="button" id="buildResumeBtn">📝 Build Resume</button>
@@ -580,15 +580,16 @@ def build_resume():
         if not job_details:
             return jsonify({'error': 'Failed to extract job details'}), 500
         
-        company = job_details.get('company', 'Unknown')
-        job_title = job_details.get('title', 'Unknown')
         description = job_details.get('description', '')
         
-        if not description:
-            return jsonify({'error': 'No job description found'}), 500
+        # Skip if no job description found
+        if not description or len(description.strip()) < 50:
+            logger.warning("⚠️ No job description found, skipping this job")
+            return jsonify({'error': 'No job description found. Skipping this job.'}), 400
+        
+        job_title = job_details.get('title', 'Unknown')
         
         logger.info(f"✅ Job details extracted in {time.time() - step_start:.2f}s")
-        logger.info(f"   Company: {company}")
         logger.info(f"   Title: {job_title}")
         
         # Extract detailed info from job description using AI
@@ -598,6 +599,37 @@ def build_resume():
         settings.ai_settings.model = ai_model
         ai_service = AIService(settings)
         logger.info(f"✅ AI service ready in {time.time() - step_start:.2f}s")
+        
+        # Get company name, fallback to AI extraction from URL if not found
+        company = job_details.get('company')
+        if not company:
+            logger.warning("⚠️ Company not found in job details, using AI to extract from URL...")
+            
+            # Use AI to intelligently extract company name from URL
+            company_prompt = f"""Extract the company name from this job posting URL. Return ONLY the company name, nothing else.
+
+URL: {job_url}
+
+Examples:
+- https://jobs.ashbyhq.com/vantage/... -> Vantage
+- https://job-boards.greenhouse.io/aquia/jobs/... -> Aquia
+- https://jobs.lever.co/immuta/... -> Immuta
+- https://abnormal.ai/careers/... -> Abnormal
+- https://lmstudio.ai/careers/... -> LM Studio
+
+Company name:"""
+            
+            try:
+                company = ai_service.generate_completion(company_prompt).strip()
+                # Clean up the response - remove quotes, extra whitespace, etc.
+                company = company.strip('"\'').strip()
+                logger.info(f"✅ AI extracted company from URL: {company}")
+            except Exception as e:
+                logger.error(f"❌ AI extraction failed: {e}")
+                company = 'Company'
+                logger.warning("⚠️ Using default: 'Company'")
+        
+        logger.info(f"   Company: {company}")
 
         # Prompt AI for detailed extraction
         detail_prompt = f"""
@@ -619,11 +651,27 @@ Output in clear sections, each starting with a label (e.g. 'Required Skills:', '
         ai_response = ai_service.generate_completion(detail_prompt)
         logger.info("\n🧠 AI Response (Detailed Extraction):\n" + ai_response.strip())
 
+        # Generate professional title block and skills using ResumeService (no printing)
+        from src.services.resume_service import ResumeService
+        personal_info = settings.user_info.resume_personal_info.model_dump() if settings.user_info.resume_personal_info else {}
+        resume_service = ResumeService(settings, ai_service)
+        header = resume_service._generate_header(personal_info, ai_response, job_title, company)
+        title_block = f"{header['title']} | {header['years']} | {header['core_stack']} | {header['value_statement']}".upper()
+
+        # Build the real resume from the template
+        resume_path = resume_service.generate_resume_from_template(
+            job_description=ai_response.strip(),
+            job_title=job_title,
+            company=company
+        )
+
         return jsonify({
             'success': True,
             'details': ai_response.strip(),
             'company': company,
-            'job_title': job_title
+            'job_title': job_title,
+            'professional_title_block': title_block,
+            'resume_path': resume_path
         })
     
     except Exception as e:
@@ -638,52 +686,14 @@ def main():
     """
     Main application entry point with web UI.
     """
-    # Default job URL
-    default_job_url = "https://jobs.ashbyhq.com/rillet/f5d21c85-4fd2-461b-b5aa-3ece7d9f6bac"
-
     print("\n" + "="*70)
     print("🤖 AI JOB SEARCH & AUTO-APPLY - WEB UI")
     print("="*70)
-    print(f"\n🔗 Extracting job info from default URL:")
-    print(f"   {default_job_url}\n")
-
-    # Extract job details and log them
-    from legacy_scripts.scrape_job_details import extract_job_details
-    job_details = extract_job_details(default_job_url)
-    if job_details:
-        print(f"Company: {job_details.get('company', 'Unknown')}")
-        print(f"Title: {job_details.get('title', 'Unknown')}")
-        print(f"Location: {job_details.get('location', 'Unknown')}")
-        print(f"Type: {job_details.get('job_type', 'Unknown')}")
-        print(f"Description: {job_details.get('description', '')[:300]}...\n")
-    else:
-        print("❌ Failed to extract job details from default URL.\n")
-
     print(f"🌐 Opening web UI at http://localhost:5001")
     print(f"   Press Ctrl+C to stop\n")
     app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
 
 
 if __name__ == "__main__":
-    # Print all content of template resume
-    from docx import Document
-    resume_path = "resumes/original/Resume.docx"
-    if os.path.exists(resume_path):
-        doc = Document(resume_path)
-        print("\n===== FULL CONTENT OF TEMPLATE RESUME =====")
-        for para in doc.paragraphs:
-            print(para.text)
-        print("==========================================\n")
-    else:
-        print(f"Resume template not found at {resume_path}")
-
-    # Fetch and print required personal info from config.json
-    import json
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    personal_info = config.get("user_info", {}).get("resume_personal_info", {})
-    print("\n===== PERSONAL INFO FROM CONFIG =====")
-    for key in ["full_name", "location", "phone", "email", "linkedin", "github"]:
-        print(f"{key}: {personal_info.get(key, '')}")
-    print("====================================\n")
     main()
+

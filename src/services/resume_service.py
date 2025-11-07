@@ -407,10 +407,12 @@ Provide ONLY the tailored resume text, no additional commentary."""
         # Generate each section using AI
         logger.info("📝 Generating header...")
         header = self._generate_header(personal_info, job_description, job_title, company)
-        
+        logger.info(f"HEADER AI RESPONSE: {header}")
+
         logger.info("🔧 Generating skills...")
         skills = self._generate_skills(job_description, job_title, company)
-        
+        logger.info(f"SKILLS AI RESPONSE: {skills}")
+
         logger.info("💼 Generating work experience...")
         # Use real work experience from config and generate bullets for each
         if self.settings.user_info.work_experience:
@@ -419,7 +421,8 @@ Provide ONLY the tailored resume text, no additional commentary."""
             )
         else:
             experience = self._generate_experience(job_description, job_title, company)
-        
+        logger.info(f"WORK EXPERIENCE AI RESPONSE: {experience}")
+
         logger.info("🎓 Using education from config...")
         # Use real education from config
         if self.settings.user_info.education:
@@ -433,13 +436,14 @@ Provide ONLY the tailored resume text, no additional commentary."""
             }
         else:
             education = self._generate_education()
+        logger.info(f"EDUCATION AI RESPONSE: {education}")
         
         # Replace template placeholders
         self._fill_template(doc, header, skills, experience, education)
         
         # Save generated resume
-        safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
-        safe_title = "".join(c for c in job_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
+        safe_company = "".join(c for c in (company or 'Company') if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
+        safe_title = "".join(c for c in (job_title or 'Position') if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
         
         output_dir = self.tailored_resume_dir / f"{safe_company}_{safe_title}"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -458,7 +462,7 @@ Provide ONLY the tailored resume text, no additional commentary."""
     def _generate_header(self, personal_info: dict, job_description: str, job_title: str, company: str) -> dict:
         """Generate professional header matching job requirements."""
         
-        # Calculate years of experience from work history
+        # Calculate years of experience from work history with range of 8-10
         years_experience = 10  # Default fallback
         if self.settings.user_info.work_experience:
             # Calculate from first job start date to current
@@ -468,9 +472,10 @@ Provide ONLY the tailored resume text, no additional commentary."""
                 start_date = first_job.dates.split('–')[0].strip()
                 start_year = int(start_date.split()[-1])
                 current_year = 2025
-                years_experience = current_year - start_year
+                calculated_years = current_year - start_year
+                years_experience = min(10, max(8, calculated_years))  # Between 8 and 10
             except:
-                pass
+                years_experience = 10  # Fallback to 10 if parsing fails
         
         # Analyze job to determine professional title and core stack
         prompt = f"""Based on this job description for {job_title} at {company}, generate a professional resume header.
@@ -478,34 +483,55 @@ Provide ONLY the tailored resume text, no additional commentary."""
 Job Description:
 {job_description[:1500]}
 
-Generate ONLY the following, one per line:
-1. Professional title (e.g., "Backend Engineer", "Full Stack Developer", "ML Engineer")
-2. Years of experience (just a number like "10+" or "8+")
-3. Core tech stack (3-5 key technologies from job description, comma-separated)
-4. Value statement (one impressive achievement, 10-15 words max)
+Generate EXACTLY 4 lines (no more, no less), each with ONLY the requested content:
 
-Format:
-[Professional Title]
-[Years like "10+"]
-[Tech1, Tech2, Tech3, Tech4]
-[Value statement with quantified impact]"""
+Line 1: Professional title (e.g., "Senior Backend Engineer" or "Full Stack Developer" or "ML Engineer")
+Line 2: Years of experience as a number with + (e.g., "10+" or "8+" or "9+") - MUST be between 8 and 10
+Line 3: Core tech stack - list 3-5 key technologies from job description, comma-separated (e.g., "Python, React, AWS, PostgreSQL")
+Line 4: Value statement - one impressive achievement in 10-15 words (e.g., "Delivering scalable cloud solutions with 99.9% uptime")
+
+CRITICAL RULES:
+- Output EXACTLY 4 lines
+- Line 2 MUST be between 8 and 10 with + symbol (e.g., "8+", "9+", or "10+")
+- NO additional text, commentary, explanations, or prefixes
+- NO markdown formatting, NO asterisks, NO bullets
+- NO phrases like "Here is", "Response:", or any headers
+- Just the 4 values, one per line
+
+Example output:
+Senior Software Engineer
+10+
+Ruby on Rails, React, AWS, PostgreSQL
+Building high-performance systems serving 10M+ users daily
+"""
 
         response = self.ai_service.generate_completion(prompt).strip()
         
-        # Clean AI response - remove markdown and extra text
-        response = response.replace('**', '')  # Remove bold markers
-        response = response.replace('*', '')   # Remove italic markers
-        # Remove common AI prefixes
-        for prefix in ['Here are the requested sections:', 'Here is:', 'Here are:', 'Response:', '|']:
-            response = response.replace(prefix, '')
-        response = response.strip()
+        # Clean AI response aggressively
+        response = response.replace('**', '').replace('*', '')
+        # Remove common AI prefixes from entire response
+        for prefix in ['here is the generated resume header:', 'here is:', 'here are:', 'response:', 'output:']:
+            if response.lower().startswith(prefix):
+                response = response[len(prefix):].strip()
         
-        lines = [line.strip() for line in response.split('\n') if line.strip()]
+        lines = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith(('line ', 'Line '))]
         
-        # Extract and clean title - make uppercase
-        title = lines[0] if len(lines) > 0 else job_title
-        title = title.replace('**', '').replace('*', '').strip()
-        title = title.upper()  # Make all caps
+        # Extract values with validation
+        title = (lines[0] if len(lines) > 0 else job_title).upper()
+        
+        # Extract and validate years - ensure between 8 and 10
+        years_raw = lines[1] if len(lines) > 1 else f"{years_experience}+"
+        # Parse the number from AI response (e.g., "3+" -> 3)
+        try:
+            years_num = int(years_raw.rstrip('+').strip())
+            # Clamp between 8 and 10
+            years_num = min(10, max(8, years_num))
+            years = f"{years_num}+"
+        except:
+            years = f"{years_experience}+"
+        
+        core_stack = lines[2] if len(lines) > 2 else "Full Stack Development"
+        value_statement = lines[3] if len(lines) > 3 else "Delivering robust, scalable solutions for business impact"
         
         return {
             'full_name': personal_info['full_name'],
@@ -515,47 +541,86 @@ Format:
             'linkedin': personal_info['linkedin'],
             'github': personal_info['github'],
             'title': title,
-            'years': lines[1] if len(lines) > 1 else f"{years_experience}+",
-            'core_stack': lines[2] if len(lines) > 2 else "Full Stack Development",
-            'value_statement': lines[3] if len(lines) > 3 else "Proven track record of delivering high-impact solutions"
+            'years': years,
+            'core_stack': core_stack,
+            'value_statement': value_statement
         }
     
     def _generate_skills(self, job_description: str, job_title: str, company: str) -> dict:
         """Generate skills section based on job requirements."""
         
-        prompt = f"""Analyze this job description for {job_title} at {company} and generate a comprehensive Technical Skills section.
+        prompt = f"""
+Analyze this job description for {job_title} at {company} and generate a comprehensive Technical Skills section for a resume.
 
 Job Description:
 {job_description[:2000]}
 
 Generate skills in these exact categories (one line per category):
-1. Languages: [programming languages]
-2. AI/ML: [if relevant - ML frameworks, tools]
-3. Frontend: [frontend frameworks and tools]
-4. Backend: [backend frameworks, APIs, architectures]
-5. Databases: [databases used]
-6. Cloud & DevOps: [cloud platforms, DevOps tools]
-7. Other: [other relevant technologies]
+- Languages: [programming languages]
+- AI/ML: [ML frameworks, tools]
+- Frontend: [frontend frameworks and tools]
+- Backend: [backend frameworks, APIs, architectures]
+- Databases: [databases used]
+- Cloud & DevOps: [cloud platforms, DevOps tools]
+- Other: [other relevant technologies]
 
-Rules:
-- Include ONLY skills explicitly mentioned or strongly implied in the job description
-- Prioritize required skills over nice-to-have
-- Be specific (e.g., "React, Next.js" not just "React")
-- If a category isn't relevant, write "N/A"
-- Output format: "Category: skill1, skill2, skill3"
+CRITICAL RULES:
+1. For EVERY category, provide a concrete list of technologies - NEVER use "None", "N/A", "not mentioned", or vague terms
+2. If job description doesn't mention specific technologies for a category, use industry-standard defaults:
+   - Languages: Python, JavaScript, Java, TypeScript
+   - AI/ML: TensorFlow, PyTorch, scikit-learn
+   - Frontend: React, Next.js, Angular, Vue.js
+   - Backend: Node.js, Django, Spring Boot, Express
+   - Databases: PostgreSQL, MySQL, MongoDB, Redis
+   - Cloud & DevOps: AWS, Docker, Kubernetes, CI/CD
+   - Other: Git, REST APIs, GraphQL, Microservices
+3. Output ONLY the 7 lines in format "Category: tech1, tech2, tech3"
+4. NO explanations, NO parentheses, NO commentary
+5. Be specific - use actual technology names, not generic terms
 
-Output the 7 lines:"""
+Example output:
+Languages: Python, JavaScript, Java
+AI/ML: TensorFlow, PyTorch, scikit-learn
+Frontend: React, Next.js, TypeScript
+Backend: Node.js, Django, FastAPI
+Databases: PostgreSQL, MongoDB, Redis
+Cloud & DevOps: AWS, Docker, Kubernetes
+Other: Git, REST APIs, GraphQL
+"""
 
         response = self.ai_service.generate_completion(prompt).strip()
-        # Remove empty lines to avoid spacing issues
-        lines = [line.strip() for line in response.split('\n') if line.strip()]
         
+        # Remove empty lines and clean
+        lines = [line.strip() for line in response.split('\n') if line.strip() and ':' in line]
+
         skills_dict = {}
         for line in lines:
             if ':' in line:
                 category, items = line.split(':', 1)
-                skills_dict[category.strip()] = items.strip()
-        
+                cat = category.strip()
+                val = items.strip()
+                
+                # Aggressive validation: if value is None/N/A/empty, use defaults
+                # Check both the raw value and lowercase version
+                if not val or len(val) < 3 or val.lower() in ['none', 'n/a', 'not mentioned', 'not specified', 'not applicable']:
+                    # Provide sensible defaults based on category
+                    if 'language' in cat.lower():
+                        val = 'Python, JavaScript, Java, TypeScript'
+                    elif 'ai' in cat.lower() or 'ml' in cat.lower():
+                        val = 'TensorFlow, PyTorch, scikit-learn'
+                    elif 'frontend' in cat.lower():
+                        val = 'React, Next.js, Angular, Vue.js'
+                    elif 'backend' in cat.lower():
+                        val = 'Node.js, Django, Spring Boot, Express'
+                    elif 'database' in cat.lower():
+                        val = 'PostgreSQL, MySQL, MongoDB, Redis'
+                    elif 'cloud' in cat.lower() or 'devops' in cat.lower():
+                        val = 'AWS, Docker, Kubernetes, CI/CD'
+                    else:
+                        val = 'Git, REST APIs, GraphQL, Microservices'
+                
+                skills_dict[cat] = val
+
         return skills_dict
     
     def _generate_experience(self, job_description: str, job_title: str, company: str) -> list:
@@ -627,40 +692,86 @@ Generate all 4 jobs now:"""
         
         jobs = []
         for work in work_history:
+            # Extract year range from dates (e.g., "Feb 2015 – Jan 2019" -> 2015-2019)
+            try:
+                dates_parts = work.dates.replace('–', '-').replace('—', '-').split('-')
+                start_year = int(dates_parts[0].strip().split()[-1])
+                if len(dates_parts) > 1 and 'Current' not in dates_parts[1]:
+                    end_year = int(dates_parts[1].strip().split()[-1])
+                else:
+                    end_year = 2025  # Current
+            except:
+                start_year = 2020
+                end_year = 2025
+            
             # Generate bullets for this specific job
             prompt = f"""Generate 4-5 impressive work experience bullets for this role, tailored to the target job.
 
-Target Job: {job_title} at {company}
-Target Job Description (what they want):
-{job_description[:2000]}
+TARGET JOB YOU'RE APPLYING FOR:
+Position: {job_title} at {company}
+Description: {job_description[:2000]}
 
-Your Role:
+YOUR PAST ROLE (what you accomplished):
 Title: {work.title}
 Company: {work.company}
 Location: {work.location}
-Dates: {work.dates}
+Dates: {work.dates} (Years: {start_year}-{end_year})
 
-Generate 4-5 bullet points following this formula:
-[Action Verb] [what you did] using [technology from job description], resulting in [quantified impact with metrics]
+CRITICAL RULES:
+1. You are generating bullets for YOUR PAST work at {work.company}, NOT for the company you're applying to ({company})
+2. NEVER mention {company} as a tool, platform, or technology - it's the company you're APPLYING TO, not a tool you used
+3. Use relevant technologies from the target job description, BUT only use technologies that existed during {start_year}-{end_year}
+4. TECHNOLOGY TIMELINE - Only use technologies released BEFORE or DURING this time period:
+   - React (2013+), Angular (2010+), Vue.js (2014+), Next.js (2016+), Node.js (2009+)
+   - Python (always available), Java (always available), JavaScript (always available)
+   - Docker (2013+), Kubernetes (2014+), AWS (2006+), Azure (2010+), GCP (2008+)
+   - MongoDB (2009+), PostgreSQL (always available), Redis (2009+), MySQL (always available)
+   - TensorFlow (2015+), PyTorch (2016+), scikit-learn (2007+)
+   - TypeScript (2012+), Go (2009+), Rust (2010+)
+5. DO NOT use technologies that didn't exist during {start_year}-{end_year} (e.g., don't use Next.js for 2010-2014)
+6. Every bullet MUST have quantified metrics (%, $, time saved, users, etc.)
+7. Start with strong action verbs: Architected, Engineered, Optimized, Built, Deployed, Reduced, Increased
+8. DO NOT use "Led", "Lead", or "Leading" as action verbs - focus on technical implementation verbs
+9. Each bullet should be 1-2 lines max
+10. Show how your past work at {work.company} makes you qualified for {job_title} at {company}
 
-Rules:
-1. Use technologies and skills from the TARGET job description
-2. Every bullet MUST have quantified metrics (%, $, time saved, users, etc.)
-3. Start with strong action verbs: Architected, Engineered, Optimized, Built, Deployed, Reduced, Increased
-4. Each bullet should be 1-2 lines max
-5. Make it relevant to the TARGET job
+GRAMMAR AND FORMATTING RULES (CRITICAL):
+11. Use correct past tense verbs: "Architected" NOT "Architectured", "Built" NOT "Builded"
+12. For verb consistency: "views, processing" NOT "views, processed" (use gerund after comma)
+13. Every bullet MUST end with a period (.)
+14. Perfect spelling and grammar - proofread each bullet
+15. No double periods (..)
+16. Proper spacing around punctuation
+17. No commentary, explanations, or meta-text like "Here is" or "Corrected:"
+18. Output ONLY the bullet text, starting directly with the action verb
 
-Output ONLY the bullets, one per line, starting with •"""
+Example format for {start_year}-{end_year}:
+• Built scalable microservices using React and AWS, reducing latency by 40% and serving 2M+ users.
+• Architected data pipeline with Python and PostgreSQL, processing 50TB daily with 99.9% reliability.
+
+Output ONLY the bullets (4-5 bullets), one per line, starting with •
+Each bullet must be grammatically perfect with proper punctuation.
+NO additional commentary, explanations, prefixes, or meta-text."""
 
             response = self.ai_service.generate_completion(prompt, temperature=0.8).strip()
             
-            # Parse bullets
+            # Parse bullets - basic cleanup only
             bullets = []
             for line in response.split('\n'):
                 line = line.strip()
                 if line.startswith('•'):
                     bullet = line.lstrip('•').strip()
-                    bullets.append(bullet)
+                    
+                    # Basic cleanup - ensure period at end
+                    if bullet and not bullet.endswith(('.', '!', '?')):
+                        bullet += '.'
+                    
+                    # Filter out bullets that:
+                    # 1. Mention target company as a tool
+                    # 2. Start with "Led" or "Lead"
+                    if (company.lower() not in bullet.lower() or f"at {company}" in bullet.lower()) and \
+                       not bullet.lower().startswith(('led ', 'lead ')):
+                        bullets.append(bullet)
             
             if bullets:
                 jobs.append({
@@ -690,7 +801,6 @@ Output ONLY the bullets, one per line, starting with •"""
         
         for paragraph in doc.paragraphs:
             text = paragraph.text
-            
             # Replace header placeholders while preserving formatting
             if '[Full Name]' in text:
                 self._replace_text_in_paragraph(paragraph, '[Full Name]', header['full_name'])
@@ -699,94 +809,172 @@ Output ONLY the bullets, one per line, starting with •"""
             elif 'LinkedIn:' in text and 'xxxxx' in text:
                 self._replace_text_in_paragraph(paragraph, text, f"LinkedIn: {header['linkedin']} | GitHub: {header['github']}")
             elif 'PROFESSIONAL TITLE' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"{header['title']} | {header['years']}+ YEARS | {header['core_stack']} | {header['value_statement']}")
+                # Compose the professional title block in all uppercase and clean
+                title_block = f"{header['title']} | {header['years']} | {header['core_stack']} | {header['value_statement']}"
+                for prefix in ["HERE ARE THE REQUESTED ELEMENTS:", "HERE IS:", "HERE ARE:", "RESPONSE:", "|", ":"]:
+                    if title_block.strip().upper().startswith(prefix):
+                        title_block = title_block.strip()[len(prefix):].strip()
+                title_block = title_block.upper()
+                self._replace_text_in_paragraph(paragraph, text, title_block)
             
-            # Replace skills placeholders
-            elif text.startswith('Languages:') and '[List' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Languages: {skills.get('Languages', 'Python, JavaScript, TypeScript')}")
+            # Replace skills placeholders using actual AI response keys, stripping markdown and fallback to correct keys if needed
+            def clean_skill_value(val):
+                if not val:
+                    return ''
+                val = val.replace('**', '').replace('*', '').strip()
+                # Check if it's a placeholder value that should be ignored
+                if val.lower() in ['none', 'n/a', 'not mentioned', 'not specified', 'not applicable']:
+                    return ''
+                # Remove parentheses and explanations
+                val = re.sub(r'\(.*?\)', '', val)
+                val = val.replace('e.g.', '').replace('E.g.', '').replace('for example', '').replace('no mention of', '').replace('implied to be', '').replace('implied', '').replace('but not specified', '').replace('not specified', '').replace('N/A', '').replace('None', '').replace(':', '').strip()
+                # Remove extra spaces and commas
+                val = re.sub(r',\s*,', ',', val)
+                val = re.sub(r'\s{2,}', ' ', val)
+                val = val.strip(', ').strip()
+                # Final check - if after cleaning it's too short or empty, return empty
+                if len(val) < 3:
+                    return ''
+                return val
+
+            def get_skill_value(skills, key, fallback=None):
+                val = skills.get(key)
+                if not val:
+                    val = skills.get(f"**{key}")
+                val = clean_skill_value(val)
+                # If cleaned value is empty or None-like, use fallback
+                if not val or len(val) < 3:
+                    val = fallback if fallback else ''
+                return val
+
+            # Widely used tech for each category
+            default_skills = {
+                'Languages': 'Python, JavaScript, TypeScript, Java, Kotlin',
+                'AI/ML': 'TensorFlow, PyTorch, scikit-learn, OpenCV',
+                'Frontend': 'React, Next.js, Angular, Vue.js',
+                'Backend': 'Node.js, Flask, Django, Spring Boot',
+                'Databases': 'PostgreSQL, MongoDB, MySQL, Redis',
+                'Cloud & DevOps': 'AWS, Docker, Kubernetes, Azure, GCP',
+                'Other': 'CI/CD, Git, REST APIs, Agile, Functional Programming'
+            }
+
+            if text.startswith('Languages:') and '[List' in text:
+                value = get_skill_value(skills, 'Languages', default_skills['Languages'])
+                self._replace_text_in_paragraph(paragraph, text, f"Languages: {value}")
             elif text.startswith('AI/ML') and '[List' in text:
-                ai_ml = skills.get('AI/ML', skills.get('AI/ML (if applicable)', ''))
-                if ai_ml and ai_ml != 'N/A':
-                    self._replace_text_in_paragraph(paragraph, text, f"AI/ML: {ai_ml}")
-                else:
-                    paragraph.clear()
+                value = get_skill_value(skills, 'AI/ML', default_skills['AI/ML'])
+                self._replace_text_in_paragraph(paragraph, text, f"AI/ML: {value}")
             elif text.startswith('Frontend:') and '[List' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Frontend: {skills.get('Frontend', 'React, Next.js')}")
+                value = get_skill_value(skills, 'Frontend', default_skills['Frontend'])
+                self._replace_text_in_paragraph(paragraph, text, f"Frontend: {value}")
             elif text.startswith('Backend:') and '[List' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Backend: {skills.get('Backend', 'Node.js, Flask, REST APIs')}")
+                value = get_skill_value(skills, 'Backend', default_skills['Backend'])
+                self._replace_text_in_paragraph(paragraph, text, f"Backend: {value}")
             elif text.startswith('Databases:') and '[List' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Databases: {skills.get('Databases', 'PostgreSQL, MongoDB, Redis')}")
+                value = get_skill_value(skills, 'Databases', default_skills['Databases'])
+                self._replace_text_in_paragraph(paragraph, text, f"Databases: {value}")
             elif text.startswith('Cloud & DevOps:') and '[List' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Cloud & DevOps: {skills.get('Cloud & DevOps', 'AWS, Docker, Kubernetes')}")
+                value = get_skill_value(skills, 'Cloud & DevOps', default_skills['Cloud & DevOps'])
+                self._replace_text_in_paragraph(paragraph, text, f"Cloud & DevOps: {value}")
             elif text.startswith('Other:') and '[List' in text:
-                other = skills.get('Other', '')
-                if other and other != 'N/A':
-                    self._replace_text_in_paragraph(paragraph, text, f"Other: {other}")
-                else:
-                    paragraph.clear()
+                value = get_skill_value(skills, 'Other', default_skills['Other'])
+                self._replace_text_in_paragraph(paragraph, text, f"Other: {value}")
         
-        # Replace experience section - track which job/bullet we're filling
-        current_job_idx = -1
-        current_bullet_idx = -1
+        # Find and delete all template placeholders between RELEVANT WORK EXPERIENCE and EDUCATION
+        work_header_idx = None
+        education_idx = None
+        for i, paragraph in enumerate(doc.paragraphs):
+            if 'RELEVANT WORK EXPERIENCE' in paragraph.text:
+                work_header_idx = i
+            if 'EDUCATION' in paragraph.text and education_idx is None:
+                education_idx = i
         
+        # Delete all paragraphs between RELEVANT WORK EXPERIENCE and EDUCATION (template placeholders)
+        if work_header_idx is not None and education_idx is not None:
+            # Get all paragraph elements between these indices
+            paras_to_delete = []
+            for i in range(work_header_idx + 1, education_idx):
+                if i < len(doc.paragraphs):
+                    paras_to_delete.append(doc.paragraphs[i])
+            
+            # Delete them
+            for para in paras_to_delete:
+                p_element = para._element
+                p_element.getparent().remove(p_element)
+        
+        # Re-find indices after deletion
+        work_header_idx = None
+        education_idx = None
+        for i, paragraph in enumerate(doc.paragraphs):
+            if 'RELEVANT WORK EXPERIENCE' in paragraph.text:
+                work_header_idx = i
+            if 'EDUCATION' in paragraph.text and education_idx is None:
+                education_idx = i
+        
+        # Insert each job experience block in correct order (most recent first)
+        # Config has jobs in correct order: [0]=Ntiva (newest), [1]=Insight, [2]=Codoxo, [3]=Plego (oldest)
+        # We insert before EDUCATION section
+        if education_idx is not None:
+            education_para = doc.paragraphs[education_idx]
+            education_element = education_para._element
+            parent = education_element.getparent()
+            
+            # Insert each job header first (bolded), then bullets below, for each job in config order
+            for job in experience:
+                # Insert job header (bold)
+                new_p = parent.makeelement('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p', nsmap=education_element.nsmap)
+                parent.insert(parent.index(education_element), new_p)
+                from docx.text.paragraph import Paragraph
+                header_para = Paragraph(new_p, parent)
+                run = header_para.add_run(f"{job['title']} | {job['company']} | {job['location']} | {job['dates']}")
+                run.bold = True
+
+                # Insert all bullets (in order)
+                for bullet in job['bullets']:
+                    clean_bullet = bullet.replace('**', '').replace('*', '').strip()
+                    new_p = parent.makeelement('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p', nsmap=education_element.nsmap)
+                    parent.insert(parent.index(education_element), new_p)
+                    bullet_para = Paragraph(new_p, parent)
+                    bullet_para.add_run(f"• {clean_bullet}")
+
+        # Bold section headers and key fields
         for paragraph in doc.paragraphs:
-            text = paragraph.text
+            if paragraph.text.strip().upper() in [
+                'TECHNICAL SKILLS', 'RELEVANT WORK EXPERIENCE', 'EDUCATION', 'CERTIFICATIONS'
+            ]:
+                for run in paragraph.runs:
+                    run.bold = True
+            # Bold key fields in education and certifications
+            if paragraph.text.strip().startswith('Bachelor') or paragraph.text.strip().startswith('Master'):
+                for run in paragraph.runs:
+                    run.bold = True
+            if 'Certified' in paragraph.text or 'Certification' in paragraph.text:
+                for run in paragraph.runs:
+                    run.bold = True
+            if paragraph.text.strip().startswith('Relevant Coursework:'):
+                for run in paragraph.runs:
+                    run.bold = True
             
-            # Job headers with pipe separator
-            if '|' in text and '[' in text and ']' in text:
-                # This is a job header line
-                if '[Job Title]' in text or 'Job Title' in text.replace('[', '').replace(']', ''):
-                    current_job_idx = 0
-                    current_bullet_idx = -1
-                elif '[Previous Job Title]' in text or 'Previous Job' in text.replace('[', '').replace(']', ''):
-                    current_job_idx = 1
-                    current_bullet_idx = -1
-                elif '[Another Role' in text or '[Third' in text or '[Job 3' in text:
-                    current_job_idx = 2
-                    current_bullet_idx = -1
-                elif '[Fourth' in text or '[Job 4' in text:
-                    current_job_idx = 3
-                    current_bullet_idx = -1
-                
-                # Replace with actual job data
-                if 0 <= current_job_idx < len(experience):
-                    job = experience[current_job_idx]
-                    self._replace_text_in_paragraph(paragraph, text, f"{job['title']} | {job['company']} | {job['location']} | {job['dates']}")
-                else:
+            # Clear template instructions and replace education placeholders
+            for paragraph in doc.paragraphs:
+                text = paragraph.text
+                if '[Focus on impact' in text or '[Include collaboration' in text or '[Always quantify' in text:
                     paragraph.clear()
-            
-            # Bullet points
-            elif text.startswith('•') and '[' in text:
-                current_bullet_idx += 1
-                if 0 <= current_job_idx < len(experience):
-                    if current_bullet_idx < len(experience[current_job_idx]['bullets']):
-                        bullet = experience[current_job_idx]['bullets'][current_bullet_idx]
-                        self._replace_text_in_paragraph(paragraph, text, f"• {bullet}")
+                elif '[Each bullet' in text or '[Remember' in text or '[Template' in text:
+                    paragraph.clear()
+                elif '[Degree Name]' in text:
+                    self._replace_text_in_paragraph(paragraph, '[Degree Name]', education['degree'])
+                elif 'Graduated:' in text and '[Month Year]' in text:
+                    if education.get('gpa'):
+                        self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']} GPA: {education['gpa']}")
                     else:
-                        paragraph.clear()
-                else:
-                    paragraph.clear()
-            
-            # Clear template instructions
-            elif '[Focus on impact' in text or '[Include collaboration' in text or '[Always quantify' in text:
-                paragraph.clear()
-            elif '[Each bullet' in text or '[Remember' in text or '[Template' in text:
-                paragraph.clear()
-            
-            # Replace education placeholders
-            elif '[Degree Name]' in text:
-                self._replace_text_in_paragraph(paragraph, '[Degree Name]', education['degree'])
-            elif 'Graduated:' in text and '[Month Year]' in text:
-                if education.get('gpa'):
-                    self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']} GPA: {education['gpa']}")
-                else:
-                    self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']}")
-            elif '[University Name]' in text:
-                self._replace_text_in_paragraph(paragraph, '[University Name]', education['university'])
-            elif text == '[City, State]':
-                self._replace_text_in_paragraph(paragraph, '[City, State]', education['location'])
-            elif 'Relevant Coursework:' in text and 'Data Structures' in text:
-                self._replace_text_in_paragraph(paragraph, text, f"Relevant Coursework: {education['coursework']}")
+                        self._replace_text_in_paragraph(paragraph, text, f"Graduated: {education['graduated']}")
+                elif '[University Name]' in text:
+                    self._replace_text_in_paragraph(paragraph, '[University Name]', education['university'])
+                elif text == '[City, State]':
+                    self._replace_text_in_paragraph(paragraph, '[City, State]', education['location'])
+                elif 'Relevant Coursework:' in text and 'Data Structures' in text:
+                    self._replace_text_in_paragraph(paragraph, text, f"Relevant Coursework: {education['coursework']}")
     
     def _replace_text_in_paragraph(self, paragraph, old_text: str, new_text: str):
         """Replace text in paragraph while preserving formatting."""
