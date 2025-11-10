@@ -991,6 +991,10 @@ OUTPUT EXACTLY {num_bullets} BULLETS (plain text, one per line):"""
             Generated answer
         """
         logger.info(f"         🤖 Generating AI answer...")
+        
+        # Check if this is a numeric question
+        is_numeric = any(keyword in question.lower() for keyword in ['how many', 'years of', 'number of', 'salary', 'compensation'])
+        
         prompt = f"""
 Answer this job application question for a {job_title} position at {company}.
 
@@ -1007,6 +1011,7 @@ Requirements:
 - Use a {self.tone} tone
 - Relate your experience to the job requirements
 - Be honest and authentic
+{"- For numeric questions, provide ONLY the number (e.g., '5' not '5 years')" if is_numeric else ""}
 - Return only the answer, no additional commentary
 
 Answer:"""

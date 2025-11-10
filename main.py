@@ -17,11 +17,11 @@ from src.config.settings import Settings
 from src.services.job_application_service import JobApplicationService
 from src.services.ai_service import AIService
 from src.services.resume_service import ResumeService
+from src.services.form_scraper_service import FormScraperService
 from src.utils.logger import setup_logging, get_logger
 
 # Add legacy scripts to path
 sys.path.insert(0, str(Path(__file__).parent / "legacy_scripts"))
-from scrape_job_details import extract_job_details
 from tailor_docx_resume import extract_resume_content, update_resume_sections
 
 # Import for resume tailoring
@@ -384,23 +384,24 @@ def search_jobs(query, max_results=20):
 def enrich_jobs(job_urls):
     """Extract detailed information for each job URL."""
     enriched_jobs = []
+    form_scraper = FormScraperService()
     
     for i, job in enumerate(job_urls, 1):
         logger.info(f"[{i}/{len(job_urls)}] Extracting: {job['url']}")
         
-        details = extract_job_details(job['url'])
+        form_data = form_scraper.extract_application_form(job['url'])
         
-        if details:
+        if form_data:
             enriched_jobs.append({
                 'url': job['url'],
-                'company': details['company'],
-                'job_title': details['title'],
-                'location': details['location'],
-                'job_type': details['job_type'],
-                'employment_type': details['employment_type'],
-                'salary': details['salary'],
-                'date_posted': details['date_posted'],
-                'description': details['description']
+                'company': form_data.get('company', 'Unknown'),
+                'job_title': form_data.get('job_title', 'Unknown'),
+                'location': form_data.get('location', 'Unknown'),
+                'job_type': 'Remote',  # Default
+                'employment_type': 'Full-time',  # Default
+                'salary': 'Not specified',
+                'date_posted': 'Unknown',
+                'description': form_data.get('job_description', '')
             })
         else:
             enriched_jobs.append({
@@ -486,12 +487,13 @@ def apply_job():
         logger.info(f"Using AI model: {ai_model}")
         
         # Extract job details to find matching tailored resume
-        job_details = extract_job_details(job_url)
+        form_scraper = FormScraperService()
+        form_data = form_scraper.extract_application_form(job_url)
         tailored_resume_path = None
         
-        if job_details:
-            company = job_details.get('company', 'Unknown')
-            job_title = job_details.get('title', 'Unknown')
+        if form_data:
+            company = form_data.get('company', 'Unknown')
+            job_title = form_data.get('job_title', 'Unknown')
             
             # Look for matching tailored resume
             safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
@@ -594,18 +596,19 @@ def build_resume():
         # Extract job details
         step_start = time.time()
         logger.info("\n📡 Extracting job details...")
-        job_details = extract_job_details(job_url)
-        if not job_details:
+        form_scraper = FormScraperService()
+        form_data = form_scraper.extract_application_form(job_url)
+        if not form_data:
             return jsonify({'error': 'Failed to extract job details'}), 500
         
-        description = job_details.get('description', '')
+        description = form_data.get('job_description', '')
         
         # Skip if no job description found
         if not description or len(description.strip()) < 50:
             logger.warning("⚠️ No job description found, skipping this job")
             return jsonify({'error': 'No job description found. Skipping this job.'}), 400
         
-        job_title = job_details.get('title', 'Unknown')
+        job_title = form_data.get('job_title', 'Unknown')
         
         logger.info(f"✅ Job details extracted in {time.time() - step_start:.2f}s")
         logger.info(f"   Title: {job_title}")
@@ -618,8 +621,8 @@ def build_resume():
         ai_service = AIService(settings)
         logger.info(f"✅ AI service ready in {time.time() - step_start:.2f}s")
         
-        # Get company name, fallback to AI extraction from URL if not found
-        company = job_details.get('company')
+        # Get company name
+        company = form_data.get('company', 'Unknown')
         if not company:
             logger.warning("⚠️ Company not found in job details, using AI to extract from URL...")
             

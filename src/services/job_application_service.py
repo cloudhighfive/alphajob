@@ -284,6 +284,39 @@ class JobApplicationService:
                 
                 filled_data['fields'][field_path] = answer
             
+            elif field_type == 'Number':
+                # Use AI to generate numeric answers for experience, salary, etc.
+                question = f"{field_title}: {field['description']}" if field['description'] else field_title
+                
+                # Ask AI to provide a numeric answer
+                answer = self.ai_service.answer_question(
+                    question,
+                    job_description,
+                    job_title,
+                    company,
+                    elevator_pitch
+                )
+                
+                # Extract number from AI response (handle cases like "5 years" -> "5")
+                import re
+                number_match = re.search(r'\d+', str(answer))
+                if number_match:
+                    numeric_value = int(number_match.group())
+                else:
+                    # Fallback: try to analyze from resume
+                    numeric_value = 5  # Safe default
+                
+                filled_data['fields'][field_path] = numeric_value
+                logger.info(f"   ✅ Set to: {numeric_value}")
+                
+                # Save Q&A pair
+                filled_data['qa_pairs'].append({
+                    'question': question,
+                    'answer': str(numeric_value),
+                    'field_type': field_type,
+                    'required': required
+                })
+            
             elif field_type in ['ValueSelect', 'MultiValueSelect']:
                 options = field.get('options', [])
                 
@@ -381,6 +414,30 @@ class JobApplicationService:
                         logger.info(f"   ✅ Selected: {', '.join(selected)}")
                     else:
                         logger.info(f"   ✅ Selected: {selected}")
+            
+            else:
+                # Catch-all for any unhandled field types - use AI
+                logger.info(f"   ⚠️  Unknown field type '{field_type}' - using AI to generate answer")
+                question = f"{field_title}: {field['description']}" if field['description'] else field_title
+                
+                answer = self.ai_service.answer_question(
+                    question,
+                    job_description,
+                    job_title,
+                    company,
+                    elevator_pitch
+                )
+                
+                filled_data['fields'][field_path] = answer
+                logger.info(f"   ✅ Set to: {answer}")
+                
+                # Save Q&A pair
+                filled_data['qa_pairs'].append({
+                    'question': question,
+                    'answer': answer,
+                    'field_type': field_type,
+                    'required': required
+                })
         
         return filled_data
     
