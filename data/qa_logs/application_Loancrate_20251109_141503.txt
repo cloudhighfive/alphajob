@@ -1,0 +1,87 @@
+======================================================================
+APPLICATION FORM DATA
+======================================================================
+
+Company: Loancrate
+Position: Software Engineer
+Date: 2025-11-09T14:14:17.546012
+Job URL: https://jobs.ashbyhq.com/loancrate/673ae41d-b7c7-4ec7-90bd-0e4b9b44063d
+Resume: resumes/tailored/Loancrate_Software_Engineer/Julian_Thomas_Loancrate_Resume.docx
+
+======================================================================
+FILLED FORM FIELDS
+======================================================================
+
+ Systemfield Name:
+  Julian Thomas
+
+ Systemfield Email:
+  julianthomas.73056@gmail.com
+
+28C302E2-F8C6-44Bb-855F-2E68281Cb842:
+  (531) 238-6566
+
+ Systemfield Resume:
+  Julian Thomas
+Randolph, MA | (531) 238-6566 | julianthomas.73056@gmail.com
+LinkedIn: linkedin.com/in/julianthomasai | GitHub: github.com/msftwarelab
+SENIOR SOFTWARE ENGINEER | 9+ | TYPESCRIPT, NODE/EXPRESS, GRAPHQL/APOLLO, AWS | DEVELOPING SCALABLE CLOUD SOLUTIONS WITH 99.9% UPTIME GUARANTEED
+TECHNICAL SKILLS
+Languages: TypeScript
+AI/ML: TensorFlow, PyTorch, scikit-learn
+Frontend: React, Apollo
+Backend: Node/Express, GraphQL/Apollo
+Databases: Postgres
+Cloud & DevOps: AWS, Terraform, Docker, ECS, RDS, ElastiCache, Kafka, ElasticSearch
+Other: Git, REST APIs, GraphQL
+RELEVANT WORK EXPERIENCE
+AI & React Developer | Ntiva | McLean, VA | Dec 2024 – Current
+• Designed and implemented a high-performance AI model using TensorFlow and React, achieving 25% improvement in prediction accuracy and serving 1M+ users.
+• Engineered a scalable web application architecture using Node.js, PostgreSQL, and Docker, resulting in 30% reduction in latency and 50% increase in throughput for 500K+ monthly active users.
+• Built a real-time data processing pipeline using Python, Redis, and AWS, processing 20TB daily with 99.95% reliability and reducing batch processing time by 70%.
+• Optimized database schema design for PostgreSQL, improving query performance by 40% and reducing storage costs by 25% for the company's 5K+ customers.
+• Deployed a cloud-based AI agent using TypeScript, Node.js, and GraphQL/Apollo on AWS, achieving 90% reduction in development time and 50% increase in deployment frequency.
+Senior Software Engineer | Insight Global | Atlanta, GA | Mar 2023 – Dec 2024
+• Engineered and deployed a high-throughput distributed system on AWS using Node.js, Express, and PostgreSQL, serving 1.5M+ users with a 99.95% uptime rate.
+• Built scalable relational DB schemas using PostgreSQL, increasing query performance by 30% and reducing latency by 25%.
+• Developed and integrated multiple AI-powered features using TensorFlow and scikit-learn, resulting in a 20% increase in user engagement metrics.
+• Optimized infrastructure-as-code using Terraform and Docker, achieving a 40% reduction in deployment time and improving scalability by 35%.
+• Mentored junior engineers in software architecture patterns and best practices, resulting in a 25% improvement in code quality and a 15% reduction in technical debt.
+Machine Learning Engineer | Codoxo | Duluth, GA | Feb 2019 – Feb 2023
+• Engineered and deployed high-throughput machine learning models using TensorFlow and Python on AWS, increasing model accuracy by 25% and reducing training time from 72 hours to 12 hours.
+• Built a scalable data pipeline with PostgreSQL, Redis, and Node.js, processing 30TB of data daily with 99.9% reliability and serving 1M+ users.
+• Optimized containerization using Docker and Kubernetes, reducing deployment time by 80% and improving codebase maintainability by 50%.
+• Architected a cloud-based infrastructure on AWS (ECS, RDS, ElastiCache) for a lending services API integration, ensuring 99.95% uptime and reducing latency by 30%.
+• Developed and mentored junior engineers in hard skills such as data structures, algorithms, and software design patterns, resulting in a 90% increase in team efficiency and productivity within 6 months.
+Software Developer | Plego Technologies | Downers Grove, IL | Feb 2015 – Jan 2019
+• Built and deployed a cloud-based API gateway using Node.js, Express, and AWS, handling over 1 million requests per day with a 99.95% uptime.
+• Engineered a scalable data storage solution using PostgreSQL and Redis, reducing database query latency by 30% and improving application performance for 500+ concurrent users.
+• Designed and implemented a real-time analytics dashboard using Python, Flask, and MongoDB, processing 10TB of data daily with a 90% reduction in processing time.
+• Developed a microservices-based architecture using Docker and Kubernetes, increasing deployment efficiency by 50% and reducing overall infrastructure costs by $100k annually.
+• Optimized and maintained a large-scale web application using React, Angular, and TypeScript, serving over 5 million users and achieving a 25% increase in page views per session.
+EDUCATION
+Bachelor of Science in Computer Science
+Graduated: May 2014
+Siena College
+Loudonville, NY
+Relevant Coursework: Data Structures & Algorithms, Database Systems, Operating Systems, Computer Networks, Software Engineering, Machine Learning
+CERTIFICATIONS
+Microsoft Certified: Azure Fundamentals – Issued May 2024 (Credential ID: 9986847382)
+AWS Certified Solutions Architect – Associate – Credential ID: Z734VQ9DJ1RQ9YUS
+CodinGame Certification - Python 3 (Dec 2024, Credential ID: nnV97egqzUzrvOsIPm2XPQ)
+
+C2E6E06D-504D-4E72-8E9E-D5D9E0206F58:
+  https://www.linkedin.com/in/julianthomasai
+
+Aeb0C7D1-Add9-4869-86E0-1Ac0Ee894C93:
+  https://github.com/msftwarelab
+
+14F7Dc5E-E49B-43Cc-9Fc5-7E1Fb454Da8F:
+  True
+
+71295F29-6F56-4595-83Ec-Bfbfd903331A:
+  EST
+
+79Abfbbc-Dedb-4034-Ba84-Aa7482F7E1D7:
+  2025-11-24
+

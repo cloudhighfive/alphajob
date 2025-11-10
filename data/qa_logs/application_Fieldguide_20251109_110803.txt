@@ -1,0 +1,96 @@
+======================================================================
+APPLICATION FORM DATA
+======================================================================
+
+Company: Fieldguide
+Position: Software Engineer
+Date: 2025-11-09T11:06:37.409728
+Job URL: https://jobs.ashbyhq.com/fieldguide/47a2afc4-1075-4378-83bb-714543b6c272/application
+Resume: resumes/tailored/August_Health_Senior_Backend_Engineer/Julian_Thomas_August_Health_Resume.docx
+
+======================================================================
+FILLED FORM FIELDS
+======================================================================
+
+ Systemfield Name:
+  Julian Thomas
+
+C10674C5-70Dc-4Fc2-9Ffc-Aa26C701355C:
+  Julian Thomas
+
+Be7F7532-0A62-4F42-85Ff-Afabade882Ac:
+  he/him/his
+
+ Systemfield Email:
+  julianthomas.73056@gmail.com
+
+128Ee38A-662B-451A-A829-6Af0653412B8:
+  (531) 238-6566
+
+ Systemfield Location:
+  Randolph, MA, United States
+
+ Systemfield Resume:
+  Julian Thomas
+Randolph, MA | (531) 238-6566 | julianthomas.73056@gmail.com
+LinkedIn: linkedin.com/in/julianthomasai | GitHub: github.com/msftwarelab
+SENIOR BACKEND ENGINEER | 9+ | SCALA, PLAY FRAMEWORK, KUBERNETES, POSTGRESQL | DESIGNING AND SHIPPING SCALABLE APIS WITH 99.9% UPTIME RELIABILITY
+TECHNICAL SKILLS
+Languages: Scala
+AI/ML: TensorFlow, PyTorch, scikit-learn, OpenCV
+Frontend: React, Next.js, Angular, Vue.js
+Backend: Play Framework
+Databases: PostgreSQL
+Cloud & DevOps: AWS, Kubernetes
+Other: REST APIs
+RELEVANT WORK EXPERIENCE
+AI & React Developer | Ntiva | McLean, VA | Dec 2024 – Current
+• Built and deployed scalable data pipelines using Python, PostgreSQL, and Redis, processing 100TB daily with 99.9% reliability and reducing latency by 30%.
+• Engineered high-performance React applications on AWS, serving 1M+ users with a 25% increase in productivity.
+• Optimized complex AI/ML workflows using TensorFlow and scikit-learn, achieving 20% improvement in model accuracy and reducing processing time by 40%.
+• Designed and implemented scalable backend APIs using Node.js, PostgreSQL, and Kubernetes, handling 10K+ requests per second with 99.95% uptime.
+• Collaborated with cross-functional teams to develop and deploy cloud-native applications on AWS, resulting in a 35% reduction in infrastructure costs and 20% increase in user engagement.
+Senior Software Engineer | Insight Global | Atlanta, GA | Mar 2023 – Dec 2024
+• Engineered scalable RESTful APIs using Java and PostgreSQL, handling 10M+ requests daily with 99.95% uptime.
+• Built cloud-native applications utilizing Kubernetes and AWS, reducing deployment time by 75% and increasing developer velocity by 25%.
+• Optimized database performance by implementing data caching with Redis and indexing with MySQL, resulting in a 30% reduction in query latency and a 20% increase in database throughput.
+• Deployed microservices architecture using Play Framework and Scala, enabling real-time updates to 5M+ users and reducing average response time by 50%.
+• Designed and implemented a data processing pipeline using Python and PostgreSQL, processing 100GB of data daily with 99.9% accuracy and saving 40 hours of manual processing time weekly.
+Machine Learning Engineer | Codoxo | Duluth, GA | Feb 2019 – Feb 2023
+• Engineered and deployed a machine learning model using Python and scikit-learn that processed 30% more transactions per hour while maintaining a 99.5% accuracy rate, resulting in a $1M+ revenue increase over 6 months.
+• Built and optimized a data pipeline with PostgreSQL, processing 15TB daily with 98% reliability and reducing data latency by 25%, serving 500K+ users.
+• Reduced infrastructure costs by 30% by migrating AWS services to a cloud-agnostic architecture using Kubernetes, resulting in $250K+ annual savings and improving scalability for future growth.
+• Designed and implemented API endpoints using Python and Flask that handled 200K+ requests per day with an average response time of <50ms, increasing user engagement by 15%.
+• Developed and deployed a scalable microservices architecture using Docker and Kubernetes, serving 1M+ users and achieving a 40% reduction in latency compared to monolithic architecture.
+Software Developer | Plego Technologies | Downers Grove, IL | Feb 2015 – Jan 2019
+• Built and deployed scalable APIs using Java and PostgreSQL, serving 500k+ users and reducing API latency by 30% through caching and load balancing techniques.
+• Engineered a microservices architecture using Docker and Kubernetes, resulting in a 25% reduction in infrastructure costs and improved deployment times from hours to minutes.
+• Optimized database performance by migrating from MySQL to PostgreSQL, achieving a 45% increase in query speed and reducing database errors by 90%.
+• Designed and implemented a data ingestion pipeline using Python and AWS, processing 10TB of data daily with 99.5% accuracy and reducing data processing time by 50%.
+• Developed and maintained a complex web application using Scala and Play Framework, serving 1M+ users and achieving a 95% reduction in error rates through rigorous testing and code review practices.
+EDUCATION
+Bachelor of Science in Computer Science
+Graduated: May 2014
+Siena College
+Loudonville, NY
+Relevant Coursework: Data Structures & Algorithms, Database Systems, Operating Systems, Computer Networks, Software Engineering, Machine Learning
+CERTIFICATIONS
+Microsoft Certified: Azure Fundamentals – Issued May 2024 (Credential ID: 9986847382)
+AWS Certified Solutions Architect – Associate – Credential ID: Z734VQ9DJ1RQ9YUS
+CodinGame Certification - Python 3 (Dec 2024, Credential ID: nnV97egqzUzrvOsIPm2XPQ)
+
+3F8C6Cc7-4F90-4D66-826B-883Ddeb938Fe:
+  https://www.linkedin.com/in/julianthomasai
+
+C7076Eaa-7947-4848-B1Ee-159617B202A1:
+  https://github.com/msftwarelab
+
+F693Bfdc-41D2-4053-9377-C2561C76680E:
+  N/A
+
+A2649C81-7Ec5-40Ef-A9A1-5Dcc1C980Fb4:
+  No
+
+E29D7C5F-F1A7-4619-B35E-0Fdeb195A06C:
+  LinkedIn
+

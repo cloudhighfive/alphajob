@@ -1012,7 +1012,10 @@ Requirements:
 Answer:"""
         
         answer = self.generate_completion(prompt)
-        logger.info(f"         🤖 AI generated answer ({len(answer)} chars)")
+        # Remove markdown formatting (e.g., **, *, _, `, #)
+        import re
+        answer = re.sub(r'[\*`_#]', '', answer)
+        logger.info(f"         🤖 AI generated answer ({len(answer)} chars, markdown stripped)")
         return answer
     
     def select_best_option(
@@ -1041,8 +1044,9 @@ Answer:"""
         logger.info(f"         🤖 Selecting from {len(options)} options...")
         options_text = "\n".join(f"{i+1}. {opt}" for i, opt in enumerate(options))
         
-        # Get user background from settings
-        user_background = self.settings.user_info.background.elevator_pitch
+        # Get user background from settings (with safe null checking)
+        background = self.settings.user_info.background
+        user_background = background.elevator_pitch if background and hasattr(background, 'elevator_pitch') else "Experienced software engineer"
         
         prompt = f"""
 Select the best option{'(s)' if multi_select else ''} for this job application question.

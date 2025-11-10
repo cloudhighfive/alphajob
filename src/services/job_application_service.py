@@ -5,7 +5,7 @@ Coordinates all services to process job applications end-to-end.
 """
 
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
@@ -39,13 +39,9 @@ class JobApplicationService:
         self.form_scraper = FormScraperService()
         self.browser_service = BrowserService(settings, headless=headless)
         
-        logger.info("="*70)
         logger.info("🤖 Job Application Service Initialized")
-        logger.info("="*70)
         logger.info(f"  Model: {settings.ai_settings.model}")
         logger.info(f"  User: {settings.user_info.personal_info.name}")
-        logger.info(f"  Email: {settings.user_info.personal_info.email}")
-        logger.info("="*70)
     
     def apply_to_job(self, job_url: str) -> Dict:
         """
@@ -57,16 +53,12 @@ class JobApplicationService:
         Returns:
             Dict with application result
         """
-        logger.info("\n" + "="*70)
-        logger.info("🚀 STARTING JOB APPLICATION WORKFLOW")
-        logger.info("="*70)
+        logger.info("🚀 Starting job application workflow")
         logger.info(f"Target: {job_url}")
-        logger.info(f"User: {self.settings.user_info.personal_info.name}")
-        logger.info(f"Email: {self.settings.user_info.personal_info.email}\n")
+        logger.info(f"User: {self.settings.user_info.personal_info.name}\n")
         
         # Step 1: Extract application form
         logger.info("Step 1/4: Extracting application form...")
-        logger.info("   📡 Fetching job posting page...")
         form_data = self.form_scraper.extract_application_form(job_url)
         
         if not form_data:
@@ -109,20 +101,18 @@ class JobApplicationService:
         logger.info("\nStep 4/4: Saving application data...")
         filled_data['submission_result'] = submission_result
         self._save_application_data(filled_data)
+        self._save_qa_text_file(filled_data)  # Save Q&A as text file
         
         # Generate preview
         preview = self._generate_application_preview(filled_data)
         logger.info(f"\n{preview}")
         
         # Final summary
-        logger.info("\n" + "="*70)
-        logger.info("📊 SUBMISSION SUMMARY")
-        logger.info("="*70)
+        logger.info("\n📊 Submission Summary")
         logger.info(f"Status: {submission_result['status'].upper()}")
         logger.info(f"Success: {'✅ Yes' if submission_result['success'] else '❌ No'}")
         logger.info(f"Message: {submission_result['message']}")
-        logger.info("\n✅ AI-powered application complete!")
-        logger.info("="*70)
+        logger.info("✅ Application complete!\n")
         
         return {
             'success': submission_result['success'],
@@ -141,9 +131,7 @@ class JobApplicationService:
         Returns:
             Dictionary with filled form data
         """
-        logger.info("="*70)
         logger.info("📝 Filling application form with AI assistance...")
-        logger.info("="*70)
         
         job_description = form_data['job_description']
         job_title = form_data['job_title']
@@ -158,13 +146,15 @@ class JobApplicationService:
         work_auth = self.settings.user_info.work_authorization
         demographics = self.settings.user_info.demographics
         background = self.settings.user_info.background
+        elevator_pitch = background.elevator_pitch if background and hasattr(background, 'elevator_pitch') else ""
         
         filled_data = {
             'company': company,
             'job_title': job_title,
             'job_url': form_data['job_url'],
             'timestamp': datetime.now().isoformat(),
-            'fields': {}
+            'fields': {},
+            'qa_pairs': []  # Track questions and answers
         }
         
         for field in form_data['form_fields']:
@@ -241,13 +231,18 @@ class JobApplicationService:
             
             elif field_type == 'Date':
                 # Handle date fields - check if it's a start date question
-                from datetime import datetime, timedelta
                 if 'start' in field_title.lower():
-                    # Default to 2 weeks from now for start dates
-                    start_date = datetime.now() + timedelta(days=14)
-                    date_value = start_date.strftime('%Y-%m-%d')
+                    # Calculate Monday that is 2 weeks from today
+                    today = datetime.now()
+                    two_weeks_later = today + timedelta(days=14)
+                    days_until_monday = (7 - two_weeks_later.weekday()) % 7  # 0 = Monday
+                    if days_until_monday == 0:  # If that day is already Monday
+                        next_monday = two_weeks_later
+                    else:
+                        next_monday = two_weeks_later + timedelta(days=days_until_monday)
+                    date_value = next_monday.strftime('%Y-%m-%d')
                     filled_data['fields'][field_path] = date_value
-                    logger.info(f"   ✅ Set to: {date_value} (2 weeks from now)")
+                    logger.info(f"   ✅ Set to: {date_value} (Monday, 2+ weeks from today)")
                 elif 'birth' in field_title.lower() or 'dob' in field_title.lower():
                     # Don't fill DOB unless required
                     filled_data['fields'][field_path] = ''
@@ -259,23 +254,63 @@ class JobApplicationService:
                     logger.info(f"   ✅ Set to: {date_value}")
                     
             elif field_type in ['LongText', 'String']:
-                # Use AI to answer custom questions
-                question = f"{field_title}: {field['description']}" if field['description'] else field_title
+                # Check for timezone questions - answer with "EST"
+                if any(keyword in field_title.lower() for keyword in ['time zone', 'timezone', 'time-zone']):
+                    answer = "EST"
+                    logger.info(f"   ✅ Set to: {answer} (timezone question)")
+                # Check for referral questions - answer with "N/A"
+                elif any(keyword in field_title.lower() for keyword in ['refer', 'referral', 'referred by']):
+                    answer = "N/A"
+                    logger.info(f"   ✅ Set to: {answer} (referral question)")
+                else:
+                    # Use AI to answer custom questions
+                    question = f"{field_title}: {field['description']}" if field['description'] else field_title
+                    
+                    answer = self.ai_service.answer_question(
+                        question,
+                        job_description,
+                        job_title,
+                        company,
+                        elevator_pitch
+                    )
+                    
+                    # Save Q&A pair (only AI-generated answers)
+                    filled_data['qa_pairs'].append({
+                        'question': question,
+                        'answer': answer,
+                        'field_type': field_type,
+                        'required': required
+                    })
                 
-                answer = self.ai_service.answer_question(
-                    question,
-                    job_description,
-                    job_title,
-                    company,
-                    background.elevator_pitch
-                )
                 filled_data['fields'][field_path] = answer
             
             elif field_type in ['ValueSelect', 'MultiValueSelect']:
                 options = field.get('options', [])
                 
+                # Handle "Where did you hear about us" questions
+                if any(keyword in field_title.lower() for keyword in ['where did you hear', 'how did you hear', 'hear about']):
+                    # Prefer LinkedIn, Google search, or Company website
+                    preferred_sources = ['LinkedIn', 'Google search', 'Company website', 'Careers page']
+                    selected = []
+                    
+                    if options:
+                        for pref in preferred_sources:
+                            for opt in options:
+                                if pref.lower() in opt.lower():
+                                    selected.append(opt)
+                                    break
+                            if selected:
+                                break  # Take first match
+                    
+                    if field_type == 'MultiValueSelect':
+                        filled_data['fields'][field_path] = selected if selected else [options[0]] if options else []
+                    else:
+                        filled_data['fields'][field_path] = selected[0] if selected else (options[0] if options else '')
+                    
+                    logger.info(f"   ✅ Selected: {filled_data['fields'][field_path]}")
+                
                 # Handle specific demographics fields
-                if 'pronoun' in field_title.lower():
+                elif 'pronoun' in field_title.lower():
                     pronoun_input = personal_info.pronouns
                     pronoun_mapping = {
                         'he/him/his': 'He/him/his',
@@ -357,6 +392,72 @@ class JobApplicationService:
             json.dump(filled_data, f, indent=2, ensure_ascii=False)
         
         logger.info(f"   💾 Application saved to: {output_path}")
+    
+    def _save_qa_text_file(self, filled_data: Dict):
+        """Save all filled form data as a readable text file."""
+        from src.utils.paths import DATA_DIR
+        import os
+        
+        # Create Q&A directory if it doesn't exist
+        qa_dir = DATA_DIR / 'qa_logs'
+        qa_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        company = filled_data.get('company', 'Unknown').replace(' ', '_')
+        filename = f"application_{company}_{timestamp}.txt"
+        output_path = qa_dir / filename
+        
+        # Write all form data to text file
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("="*70 + "\n")
+            f.write(f"APPLICATION FORM DATA\n")
+            f.write("="*70 + "\n\n")
+            f.write(f"Company: {filled_data.get('company', 'Unknown')}\n")
+            f.write(f"Position: {filled_data.get('job_title', 'Unknown')}\n")
+            f.write(f"Date: {filled_data.get('timestamp', 'Unknown')}\n")
+            f.write(f"Job URL: {filled_data.get('job_url', 'Unknown')}\n")
+            
+            if filled_data.get('tailored_resume_path'):
+                f.write(f"Resume: {filled_data.get('tailored_resume_path')}\n")
+            
+            f.write("\n" + "="*70 + "\n")
+            f.write("FILLED FORM FIELDS\n")
+            f.write("="*70 + "\n\n")
+            
+            # Write all filled fields
+            fields = filled_data.get('fields', {})
+            if fields:
+                for field_path, value in fields.items():
+                    # Clean up the field path for display
+                    field_name = field_path.split('.')[-1].replace('_', ' ').title()
+                    f.write(f"{field_name}:\n")
+                    
+                    # Format the value nicely
+                    if isinstance(value, list):
+                        f.write(f"  {', '.join(str(v) for v in value)}\n")
+                    elif isinstance(value, str) and len(value) > 100:
+                        # For long text, indent it
+                        f.write(f"  {value}\n")
+                    else:
+                        f.write(f"  {value}\n")
+                    f.write("\n")
+            
+            # Write AI-generated Q&A separately
+            qa_pairs = filled_data.get('qa_pairs', [])
+            if qa_pairs:
+                f.write("\n" + "="*70 + "\n")
+                f.write("AI-GENERATED ANSWERS\n")
+                f.write("="*70 + "\n\n")
+                
+                for i, qa in enumerate(qa_pairs, 1):
+                    f.write(f"Q{i}: {qa['question']}\n")
+                    f.write(f"     {'[REQUIRED]' if qa.get('required') else '[OPTIONAL]'} - {qa.get('field_type', 'Unknown')}\n\n")
+                    f.write(f"A{i}: {qa['answer']}\n")
+                    f.write("\n" + "-"*70 + "\n\n")
+        
+        logger.info(f"   📝 Application form data saved to: {output_path}")
+
     
     def _generate_application_preview(self, filled_data: Dict) -> str:
         """Generate human-readable preview of application."""

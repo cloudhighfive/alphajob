@@ -84,9 +84,7 @@ class ResumeService:
         Returns:
             Tailored resume (Document object if DOCX, string if TXT)
         """
-        logger.info("="*70)
         logger.info("🤖 AI is tailoring your resume...")
-        logger.info("="*70)
         
         # If we have a Document object, do section-by-section tailoring
         if original_doc:
@@ -407,11 +405,9 @@ Provide ONLY the tailored resume text, no additional commentary."""
         # Generate each section using AI
         logger.info("📝 Generating header...")
         header = self._generate_header(personal_info, job_description, job_title, company)
-        logger.info(f"HEADER AI RESPONSE: {header}")
 
         logger.info("🔧 Generating skills...")
         skills = self._generate_skills(job_description, job_title, company)
-        logger.info(f"SKILLS AI RESPONSE: {skills}")
 
         logger.info("💼 Generating work experience...")
         # Use real work experience from config and generate bullets for each
@@ -421,7 +417,6 @@ Provide ONLY the tailored resume text, no additional commentary."""
             )
         else:
             experience = self._generate_experience(job_description, job_title, company)
-        logger.info(f"WORK EXPERIENCE AI RESPONSE: {experience}")
 
         logger.info("🎓 Using education from config...")
         # Use real education from config
@@ -533,7 +528,7 @@ Building high-performance systems serving 10M+ users daily
         core_stack = lines[2] if len(lines) > 2 else "Full Stack Development"
         value_statement = lines[3] if len(lines) > 3 else "Delivering robust, scalable solutions for business impact"
         
-        return {
+        header_data = {
             'full_name': personal_info['full_name'],
             'location': personal_info['location'],
             'phone': personal_info['phone'],
@@ -545,6 +540,17 @@ Building high-performance systems serving 10M+ users daily
             'core_stack': core_stack,
             'value_statement': value_statement
         }
+        
+        # Add "years" suffix if not present
+        years_value = header_data.get('years', '10+')
+        if 'year' not in years_value.lower():
+            try:
+                num = years_value.rstrip('+').strip()
+                header_data['years'] = f"{num}+ years"
+            except:
+                header_data['years'] = "10+ years"
+        
+        return header_data
     
     def _generate_skills(self, job_description: str, job_title: str, company: str) -> dict:
         """Generate skills section based on job requirements."""

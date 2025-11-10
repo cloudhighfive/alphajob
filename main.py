@@ -53,42 +53,45 @@ HTML_TEMPLATE = '''
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0a0a0a;
             min-height: 100vh;
             padding: 20px;
+            color: #e0e0e0;
         }
         .container { max-width: 1400px; margin: 0 auto; }
         .header {
-            background: white;
-            border-radius: 15px;
+            background: #1a1a1a;
+            border-radius: 12px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid #2a2a2a;
         }
-        h1 { color: #667eea; font-size: 28px; margin-bottom: 5px; }
-        .subtitle { color: #666; font-size: 14px; }
+        h1 { color: #ffffff; font-size: 28px; margin-bottom: 5px; }
+        .subtitle { color: #888; font-size: 14px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .card {
-            background: white;
-            border-radius: 15px;
+            background: #1a1a1a;
+            border-radius: 12px;
             padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid #2a2a2a;
         }
-        .card h2 { color: #333; font-size: 20px; margin-bottom: 20px; }
+        .card h2 { color: #ffffff; font-size: 20px; margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #e0e0e0; font-size: 14px; }
         input[type="text"], input[type="number"] {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
+            border: 1px solid #2a2a2a;
             border-radius: 8px;
             font-size: 14px;
+            background: #0a0a0a;
+            color: #e0e0e0;
         }
-        input:focus { outline: none; border-color: #667eea; }
+        input:focus { outline: none; border-color: #666; background: #1a1a1a; }
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #3a3a3a;
             padding: 12px 25px;
             font-size: 15px;
             font-weight: 600;
@@ -96,33 +99,35 @@ HTML_TEMPLATE = '''
             cursor: pointer;
             width: 100%;
             margin-top: 10px;
+            transition: all 0.2s;
         }
-        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        button:hover { transform: translateY(-2px); background: #3a3a3a; border-color: #4a4a4a; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
         .results {
-            background: white;
-            border-radius: 15px;
+            background: #1a1a1a;
+            border-radius: 12px;
             padding: 25px;
             margin-top: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid #2a2a2a;
             max-height: 600px;
             overflow-y: auto;
         }
         .job-card {
-            border: 2px solid #e0e0e0;
+            border: 1px solid #2a2a2a;
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 12px;
+            background: #0a0a0a;
         }
-        .job-card:hover { border-color: #667eea; }
-        .job-title { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 5px; }
-        .job-company { color: #667eea; font-size: 14px; margin-bottom: 8px; }
+        .job-card:hover { border-color: #ffffff; }
+        .job-title { font-size: 16px; font-weight: 600; color: #ffffff; margin-bottom: 5px; }
+        .job-company { color: #888; font-size: 14px; margin-bottom: 8px; }
         .job-meta { font-size: 13px; color: #666; }
         .status { padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
-        .status.loading { background: #fff3cd; color: #856404; }
-        .status.success { background: #d4edda; color: #155724; }
-        .status.error { background: #f8d7da; color: #721c24; }
-        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; }
+        .status.loading { background: #1a1a1a; color: #ffffff; border: 1px solid #2a2a2a; }
+        .status.success { background: #1a1a1a; color: #ffffff; border: 1px solid #ffffff; }
+        .status.error { background: #1a1a1a; color: #888; border: 1px solid #2a2a2a; }
+        .spinner { border: 3px solid #2a2a2a; border-top: 3px solid #ffffff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -502,7 +507,9 @@ def apply_job():
                 else:
                     logger.warning(f"⚠️  No tailored resume found in {resume_dir}, will use original")
             else:
-                logger.warning(f"⚠️  No tailored resume directory found, will use original")
+                logger.warning(f"⚠️  No tailored resume directory found for {safe_company}_{safe_title}")
+                logger.info(f"💡 TIP: Click 'Build Resume' first to generate a tailored resume for this job")
+
         
         # Load settings and apply
         settings = Settings.from_json("config.json")
@@ -510,21 +517,32 @@ def apply_job():
         # If tailored resume exists, temporarily update settings to use it
         if tailored_resume_path:
             # Copy settings and update resume path
-            import copy
-            settings_dict = json.loads(settings.to_json())
-            settings_dict['resume']['path'] = tailored_resume_path
-            
+            settings_dict = settings.to_dict()
+            settings_dict['user_info']['files']['original_resume_path'] = str(tailored_resume_path)
+
+            # Recursively convert all PosixPath objects to str
+            def convert_paths(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_paths(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_paths(i) for i in obj]
+                elif isinstance(obj, Path):
+                    return str(obj)
+                else:
+                    return obj
+            settings_dict = convert_paths(settings_dict)
+
             # Save temp config
             with open('.temp_config.json', 'w') as f:
                 json.dump(settings_dict, f, indent=2)
-            
+
             settings = Settings.from_json('.temp_config.json')
             logger.info(f"📄 Using tailored resume for application")
         
         # Override AI model in settings
         settings.ai_settings.model = ai_model
         
-        job_service = JobApplicationService(settings, headless=False)
+        job_service = JobApplicationService(settings, headless=True)
         
         # Run in background thread to avoid blocking
         def apply_in_background():

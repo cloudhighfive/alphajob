@@ -69,35 +69,37 @@ class BrowserService:
             
             with sync_playwright() as p:
                 try:
-                    logger.info(f"   🚀 Launching Chromium browser (headless={self.headless})...")
+                    logger.info(f"   🚀 Launching Chrome with debug profile...")
                     
-                    # Use simple browser launch (not persistent context)
-                    browser = p.chromium.launch(
-                        headless=self.headless,
+                    # Use a separate debugging profile directory
+                    import os
+                    import tempfile
+                    home_dir = os.path.expanduser("~")
+                    debug_profile = os.path.join(home_dir, "Library/Application Support/Google/Chrome-Debug")
+                    
+                    logger.info(f"   📂 Using debug profile: {debug_profile}")
+                    
+                    # Launch Chrome with debug profile
+                    browser = p.chromium.launch_persistent_context(
+                        debug_profile,
+                        headless=False,
+                        channel="chrome",
                         args=[
                             '--disable-blink-features=AutomationControlled',
-                            '--disable-dev-shm-usage',
                             '--no-first-run',
                             '--no-default-browser-check',
                             '--disable-background-timer-throttling',
                             '--disable-backgrounding-occluded-windows',
                             '--disable-renderer-backgrounding',
-                        ]
-                    )
-                    
-                    # Create a clean context with realistic settings
-                    browser_context = browser.new_context(
+                        ],
                         viewport={'width': 1920, 'height': 1080},
-                        user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        locale='en-US',
-                        timezone_id='America/New_York',
-                        permissions=[],
-                        geolocation=None,
-                        color_scheme='light'
                     )
                     
-                    page = browser_context.pages[0] if browser_context.pages else browser_context.new_page()
-                    logger.info(f"   ✅ Browser ready")
+                    logger.info(f"   ✅ Chrome ready")
+                    logger.info(f"   ℹ️  Note: Using separate debug profile. You can sign into your accounts for full legitimacy.")
+                    
+                    # Get or create a page
+                    page = browser.pages[0] if browser.pages else browser.new_page()
                     
                     # Inject anti-detection scripts
                     logger.info(f"   🔒 Injecting stealth scripts...")
@@ -127,16 +129,15 @@ class BrowserService:
                     
                     # Submit or manual review
                     if not self.auto_submit:
-                        result = self._manual_submit(browser_context, browser)
+                        result = self._manual_submit(browser, browser)
                     else:
-                        result = self._auto_submit(page, browser_context, browser)
+                        result = self._auto_submit(page, browser, browser)
                     
                     return result
                     
                 except Exception as e:
                     logger.error(f"   ⚠️  Browser context error: {e}")
                     try:
-                        browser_context.close()
                         browser.close()
                     except:
                         pass
@@ -1153,14 +1154,31 @@ class BrowserService:
                     label_text = label.inner_text() if label and label.count() > 0 else "(no label)"
                     logger.info(f"      [{idx}] id={input_id} label={label_text}")
 
-                # Now select the correct radio based on gender_value (exact match only)
+                # Now select the correct radio based on gender_value (fuzzy match)
                 gender_value_lower = gender_value.strip().lower()
+                
+                # Gender mappings for common variations
+                gender_mappings = {
+                    'man': ['male', 'man'],
+                    'male': ['male', 'man'],
+                    'woman': ['female', 'woman'],
+                    'female': ['female', 'woman'],
+                    'non-binary': ['non-binary', 'nonbinary', 'non binary'],
+                    'prefer not to say': ['decline', 'prefer not', 'rather not'],
+                }
+                
+                # Get possible matches for the user's gender value
+                possible_matches = gender_mappings.get(gender_value_lower, [gender_value_lower])
+                
                 found = False
                 for radio in radio_inputs:
                     input_id = radio.get_attribute('id')
                     label = page.locator(f'label[for="{input_id}"]').first if input_id else None
                     label_text = label.inner_text().strip() if label and label.count() > 0 else ""
-                    if label_text.lower() == gender_value_lower:
+                    label_text_lower = label_text.lower()
+                    
+                    # Check if label matches any possible variation
+                    if any(match in label_text_lower for match in possible_matches):
                         label.scroll_into_view_if_needed()
                         time.sleep(0.3)
                         label.click()
@@ -1168,56 +1186,90 @@ class BrowserService:
                         logger.info(f"      ✅ Selected Gender: {label_text}")
                         found = True
                         break
+                        
                 if not found:
-                    logger.warning(f"      ⚠️  Could not find radio for gender value: {gender_value}")
+                    logger.warning(f"      ⚠️  Could not find radio for gender value: {gender_value} (tried: {possible_matches})")
         except Exception as e:
             logger.error(f"      ⚠️  Gender field error: {str(e)[:150]}")
     
     def _fill_race_field(self, page, race_value: str):
         """Fill race identity field."""
         try:
-            race_label = page.locator('text=/Race identity/i').first
-            if race_label.count() > 0:
+            race_heading = page.locator('text=/Race/i').first
+            if race_heading.count() > 0:
                 logger.info(f"   📋 Found Race identity field")
+                race_heading.scroll_into_view_if_needed()
                 
-                race_input = page.locator('input[placeholder="Start typing..." i]').last
-                if race_input.count() > 0:
-                    race_input.scroll_into_view_if_needed()
-                    time.sleep(0.3)
-                    race_input.click()
-                    time.sleep(0.5)
-                    race_input.press_sequentially(race_value, delay=80)
-                    time.sleep(0.8)
+                # Find all radio inputs after the heading
+                radio_inputs = race_heading.locator('xpath=following::input[@type="radio"]').all()
+                
+                # Race value matching
+                race_value_lower = race_value.strip().lower()
+                
+                found = False
+                for radio in radio_inputs:
+                    input_id = radio.get_attribute('id')
+                    label = page.locator(f'label[for="{input_id}"]').first if input_id else None
+                    label_text = label.inner_text().strip() if label and label.count() > 0 else ""
+                    label_text_lower = label_text.lower()
                     
-                    option = page.locator('[role="option"]').first
-                    if option.count() > 0:
-                        option.click()
+                    # Check if the race value matches the label
+                    if race_value_lower in label_text_lower or label_text_lower in race_value_lower:
+                        label.scroll_into_view_if_needed()
+                        time.sleep(0.3)
+                        label.click()
                         time.sleep(0.5)
-                        logger.info(f"      ✅ Selected Race: {race_value}")
+                        logger.info(f"      ✅ Selected Race: {label_text}")
+                        found = True
+                        break
+                
+                if not found:
+                    logger.warning(f"      ⚠️  Could not find race option for: {race_value}")
         except Exception as e:
             logger.error(f"      ⚠️  Race field error: {str(e)[:150]}")
     
     def _fill_veteran_field(self, page, veteran_value: str):
         """Fill veteran status field."""
         try:
-            veteran_label = page.locator('text=/Veteran status/i').first
-            if veteran_label.count() > 0:
+            veteran_heading = page.locator('text=/Veteran status/i').first
+            if veteran_heading.count() > 0:
                 logger.info(f"   📋 Found Veteran status field")
+                veteran_heading.scroll_into_view_if_needed()
                 
-                # Map to radio button text
-                if veteran_value.lower() == 'no':
-                    veteran_text = 'I am not a Veteran'
-                elif veteran_value.lower() == 'yes':
-                    veteran_text = 'Yes, I am a Veteran'
-                else:
-                    veteran_text = 'Prefer not to disclose'
+                # Find all radio inputs after the heading
+                radio_inputs = veteran_heading.locator('xpath=following::input[@type="radio"]').all()
                 
-                veteran_radio = page.locator(f'label:has-text("{veteran_text}")').first
-                if veteran_radio.count() > 0:
-                    veteran_radio.click()
-                    logger.info(f"      ✅ Selected Veteran: {veteran_text}")
+                # Veteran status mappings
+                veteran_value_lower = veteran_value.strip().lower()
+                veteran_mappings = {
+                    'no': ['not a veteran', 'not a protected veteran', 'i am not'],
+                    'yes': ['i am a veteran', 'protected veteran', 'i identify as'],
+                    'decline': ['decline', 'prefer not', 'rather not'],
+                }
+                
+                possible_matches = veteran_mappings.get(veteran_value_lower, [veteran_value_lower])
+                
+                found = False
+                for radio in radio_inputs:
+                    input_id = radio.get_attribute('id')
+                    label = page.locator(f'label[for="{input_id}"]').first if input_id else None
+                    label_text = label.inner_text().strip() if label and label.count() > 0 else ""
+                    label_text_lower = label_text.lower()
+                    
+                    # Check if label matches any possible variation
+                    if any(match in label_text_lower for match in possible_matches):
+                        label.scroll_into_view_if_needed()
+                        time.sleep(0.3)
+                        label.click()
+                        time.sleep(0.5)
+                        logger.info(f"      ✅ Selected Veteran: {label_text}")
+                        found = True
+                        break
+                
+                if not found:
+                    logger.warning(f"      ⚠️  Could not find veteran option for: {veteran_value}")
         except Exception as e:
-            logger.error(f"      ⚠️  Veteran field error: {str(e)[:50]}")
+            logger.error(f"      ⚠️  Veteran field error: {str(e)[:150]}")
     
     def _manual_submit(self, browser_context, browser) -> Dict:
         """Handle manual submission workflow."""
@@ -1272,24 +1324,7 @@ class BrowserService:
                 continue
         if submitted:
             logger.info(f"   ⏳ Waiting for submission to process...")
-            # Check for CAPTCHA before and after submit
-            if self._detect_captcha(page):
-                logger.info(f"\n" + "="*70)
-                logger.info(f"   🤖 CAPTCHA DETECTED!")
-                logger.info(f"   " + "="*70)
-                logger.info(f"   Please solve the CAPTCHA manually in the browser window.")
-                logger.info(f"   Press ENTER after solving the CAPTCHA...")
-                logger.info(f"   " + "="*70 + "\n")
-                input()
             page.wait_for_load_state('networkidle', timeout=30000)
-            # Check for CAPTCHA again after load
-            if self._detect_captcha(page):
-                logger.info(f"\n" + "="*70)
-                logger.info(f"   🤖 CAPTCHA STILL PRESENT after submit!")
-                logger.info(f"   Please solve the CAPTCHA manually in the browser window.")
-                logger.info(f"   Press ENTER after solving the CAPTCHA...")
-                logger.info(f"   " + "="*70 + "\n")
-                input()
             # Take post-submit screenshot
             post_submit_path = get_post_submit_screenshot_path()
             page.screenshot(path=str(post_submit_path))
@@ -1319,38 +1354,36 @@ class BrowserService:
             status = 'failed'
             success = False
             message = 'Submit button not found'
-        # Keep browser open for inspection
+        # Keep browser open for inspection (with timeout)
         logger.info(f"\n   ⏸️  Browser kept open for inspection...")
         logger.info(f"   ℹ️  Status: {status}")
         logger.info(f"   ℹ️  Message: {message}")
         logger.info(f"   ℹ️  Check the browser window to verify submission")
-        logger.info(f"   ℹ️  Press Ctrl+C when done\n")
-        def handler(signum, frame):
-            logger.info(f"\n   🛑 Closing browser...")
-            browser_context.close()
-            browser.close()
-            exit(0)
-        signal.signal(signal.SIGINT, handler)
-        # Wait indefinitely
-        while True:
-            time.sleep(1)
+        logger.info(f"   ℹ️  Browser will auto-close in 30 seconds\n")
+        
+        # Setup signal handler (only works in main thread)
+        try:
+            def handler(signum, frame):
+                logger.info(f"\n   🛑 Closing browser...")
+                browser_context.close()
+                browser.close()
+                exit(0)
+            signal.signal(signal.SIGINT, handler)
+        except ValueError:
+            # Signal only works in main thread - running in Flask thread
+            pass
+        
+        # Wait for 30 seconds before auto-closing
+        time.sleep(30)
+        logger.info("   ⏰ Timeout reached, closing browser...")
+        
+        # Return the submission result
+        return {
+            'success': success,
+            'status': status,
+            'message': message
+        }
     
-    def _detect_captcha(self, page):
-        """Detect if a CAPTCHA is present on the page."""
-        # Check for iframes
-        if page.locator('iframe[title*="recaptcha" i], iframe[src*="captcha" i]').count() > 0:
-            logger.info("   🤖 CAPTCHA detected via iframe!")
-            return True
-        # Check for elements with class or id containing 'captcha'
-        if page.locator('[class*="captcha" i], [id*="captcha" i]').count() > 0:
-            logger.info("   🤖 CAPTCHA detected via class/id!")
-            return True
-        # Check for visible text
-        if page.locator('text=/captcha/i').count() > 0:
-            logger.info("   🤖 CAPTCHA detected via visible text!")
-            return True
-        return False
-
     def _simulate_human_behavior(self, page):
         """Simulate human-like mouse movement and scrolling."""
         import random

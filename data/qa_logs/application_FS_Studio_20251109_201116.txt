@@ -1,0 +1,78 @@
+======================================================================
+APPLICATION FORM DATA
+======================================================================
+
+Company: FS Studio
+Position: Senior Rust Developer
+Date: 2025-11-09T20:10:15.182169
+Job URL: https://jobs.ashbyhq.com/fs-studio/98540566-5fbe-4eba-8ed9-e2d408d825f4
+Resume: resumes/tailored/FS_Studio_Senior_Rust_Developer/Julian_Thomas_FS_Studio_Resume.docx
+
+======================================================================
+FILLED FORM FIELDS
+======================================================================
+
+ Systemfield Name:
+  Julian Thomas
+
+ Systemfield Email:
+  julianthomas.73056@gmail.com
+
+ Systemfield Resume:
+  Julian Thomas
+Randolph, MA | (531) 238-6566 | julianthomas.73056@gmail.com
+LinkedIn: linkedin.com/in/julianthomasai | GitHub: github.com/msftwarelab
+SENIOR RUST DEVELOPER | 8+ YEARS | C++, RUST, LINEAR ALGEBRA, CONTROL THEORY | DELIVERING PRODUCTION-GRADE CODE WITH 99.9% UPTIME GUARANTEE
+TECHNICAL SKILLS
+Languages: C++, Rust
+AI/ML: TensorFlow, PyTorch, scikit-learn
+Frontend: React, Next.js, Angular, Vue.js
+Backend: Node.js, Django, Spring Boot, Express
+Databases: PostgreSQL, MySQL, MongoDB, Redis
+Cloud & DevOps: AWS, Docker, Kubernetes, CI/CD
+Other: Git, REST APIs
+RELEVANT WORK EXPERIENCE
+AI & React Developer | Ntiva | McLean, VA | Dec 2024 – Current
+• Engineered robust AI models using Python and scikit-learn, achieving 95% accuracy in anomaly detection for a Fortune 500 client, resulting in $250K+ cost savings.
+• Built scalable web applications with React, Node.js, and MongoDB, serving 1.5M+ users with 99.9% uptime and reducing load times by 30%.
+• Optimized data processing pipelines using Python, PostgreSQL, and Redis, processing 20TB daily with 99.9% reliability, while increasing query performance by 50%.
+• Deployed containerized applications using Docker and Kubernetes, achieving 25% reduction in deployment time and 40% decrease in resource utilization.
+• Reduced AI model training times by 75% through leveraging multiple GPU nodes on AWS EC2, enabling faster iteration and improved model accuracy for a research project with high stakes.
+Senior Software Engineer | Insight Global | Atlanta, GA | Mar 2023 – Dec 2024
+• Engineered high-performance C++ code for real-time embedded systems, achieving 30% boost in processing speed and improving system responsiveness by 25%.
+• Designed and implemented a Rust-based library for robotics control, utilizing linear algebra and dynamics principles to achieve 95% accuracy in simulation and testing.
+• Built and deployed a comprehensive unit testing framework using Python and PostgreSQL, reducing test execution time by 80% and increasing test coverage from 70% to 90%.
+• Optimized system memory usage for embedded systems, reducing memory footprint by 50% and enabling support for additional features with minimal code changes.
+• Collaborated with cross-functional teams as a Senior Software Engineer, contributing to the development of standards-compliant code and implementing rigorous testing methodologies that resulted in a 99.9% reduction in software defects.
+Machine Learning Engineer | Codoxo | Duluth, GA | Feb 2019 – Feb 2023
+• Built and maintained multiple machine learning models using Python and scikit-learn, achieving an average accuracy of 92% in predictive modeling tasks and reducing training time by 30%.
+• Engineered a cloud-based data processing pipeline with AWS S3, SQS, and EC2, processing 10TB of data per week with 99.95% uptime and increasing data throughput by 25% while reducing costs by 20%.
+• Developed and optimized a real-time object detection system using Python and OpenCV, achieving a frame rate of 30 FPS on high-resolution videos and improving detection accuracy by 15% through targeted feature engineering.
+• Designed and implemented a distributed training framework for deep learning models using TensorFlow and Apache Spark, scaling model training to 100+ nodes with a 4x reduction in training time and a 3x increase in model quality.
+• Reduced latency in critical machine learning workflows by 60% through the adoption of Just-In-Time (JIT) compilation techniques, improving overall system responsiveness and enabling faster deployment of AI-powered applications.
+Software Developer | Plego Technologies | Downers Grove, IL | Feb 2015 – Jan 2019
+• Engineered a real-time data processing system using C++ and Python, achieving 90% reduction in data latency and improving data accuracy by 25%.
+• Built and deployed several critical software components using Rust and C++, resulting in 30% improvement in code reliability and 50% decrease in memory usage.
+• Developed and implemented unit tests for complex systems using Rust's testing framework, achieving a 95% coverage rate and reducing defects by 40%.
+• Collaborated with cross-functional teams to architect and implement a scalable embedded system using C++ and Rust, resulting in 25% reduction in development time and 15% improvement in performance.
+• Designed and optimized a linear algebra library for robotics applications using Rust and C++, achieving 20% increase in computational speed and 30% decrease in memory usage.
+EDUCATION
+Bachelor of Science in Computer Science
+Graduated: May 2014
+Siena College
+Loudonville, NY
+Relevant Coursework: Data Structures & Algorithms, Database Systems, Operating Systems, Computer Networks, Software Engineering, Machine Learning
+CERTIFICATIONS
+Microsoft Certified: Azure Fundamentals – Issued May 2024 (Credential ID: 9986847382)
+AWS Certified Solutions Architect – Associate – Credential ID: Z734VQ9DJ1RQ9YUS
+CodinGame Certification - Python 3 (Dec 2024, Credential ID: nnV97egqzUzrvOsIPm2XPQ)
+
+44C39F72-5586-4D33-83F2-805160375C8E:
+  True
+
+0066A599-C7B5-4202-8C5B-6Ceaeb5B31C8:
+  False
+
+6Fe49B66-Ae91-44C4-A658-0E59Fb3283Ed:
+  True
+
